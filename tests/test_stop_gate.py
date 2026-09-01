@@ -22,19 +22,26 @@ STRONG_TEST = "def test_invoice_total():\n    total = 105\n    assert total == 1
 WEAK_TEST = "def test_invoice_total():\n    total = 105\n    assert total > 0\n"
 
 
-def run_hook(payload: dict, env_extra: dict | None = None) -> tuple[int, str, str]:
+def run_hook_bytes(stdin: bytes, env_extra: dict | None = None) -> tuple[int, str, str]:
     env = dict(os.environ)
     if env_extra:
         env.update(env_extra)
     result = subprocess.run(
         [sys.executable, HOOK],
-        input=json.dumps(payload),
+        input=stdin,
         capture_output=True,
-        text=True,
         timeout=120,
         env=env,
     )
-    return result.returncode, result.stdout.strip(), result.stderr
+    return (
+        result.returncode,
+        result.stdout.decode("utf-8", errors="replace").strip(),
+        result.stderr.decode("utf-8", errors="replace"),
+    )
+
+
+def run_hook(payload: dict, env_extra: dict | None = None) -> tuple[int, str, str]:
+    return run_hook_bytes(json.dumps(payload).encode("utf-8"), env_extra)
 
 
 def git(cwd: str, *args: str) -> None:
@@ -109,6 +116,23 @@ class StopGateTest(unittest.TestCase):
             code, out, _ = run_hook({"cwd": plain})
         self.assertEqual(code, 0)
         self.assertEqual(self.decision(out), {})
+
+    def test_a8_bom_payload_still_gates(self) -> None:
+        """Dogfood day-one regression: PowerShell pipes prepend a UTF-8 BOM.
+        The old parser fell back to os.getcwd() and silently allowed."""
+        with open(os.path.join(self.repo, "tests", "test_billing.py"), "w", encoding="utf-8") as f:
+            f.write(WEAK_TEST)
+        stdin = json.dumps({"cwd": self.repo}).encode("utf-8-sig")
+        code, out, _ = run_hook_bytes(stdin)
+        self.assertEqual(code, 0)
+        self.assertEqual(self.decision(out).get("decision"), "block")
+
+    def test_a9_malformed_payload_fails_closed(self) -> None:
+        code, out, _ = run_hook_bytes(b"definitely not json")
+        self.assertEqual(code, 0)
+        verdict = self.decision(out)
+        self.assertEqual(verdict.get("decision"), "block")
+        self.assertIn("Failing closed", verdict.get("reason", ""))
 
 
 if __name__ == "__main__":

@@ -56,11 +56,32 @@ def _is_git_repo(cwd: str) -> bool:
     return probe.returncode == 0 and probe.stdout.strip() == "true"
 
 
-def main() -> int:
+def _read_payload() -> dict | None:
+    """Read the hook payload. BOM-tolerant; None means malformed (fail closed).
+
+    Empty stdin is tolerated as a manual invocation ({} -> cwd fallback). A
+    non-empty, non-JSON payload is NOT guessed around: guessing (the old
+    os.getcwd() fallback on parse failure) plus the non-git pass-through
+    composed into a silent fail-open, found on dogfood day one.
+    """
+    raw = sys.stdin.buffer.read()
+    text = raw.decode("utf-8-sig", errors="replace").strip()
+    if not text:
+        return {}
     try:
-        payload = json.load(sys.stdin)
+        parsed = json.loads(text)
     except Exception:
-        payload = {}
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def main() -> int:
+    payload = _read_payload()
+    if payload is None:
+        return _block(
+            "tripwire: malformed hook payload (stdin was not JSON). "
+            "Failing closed: the stop gate cannot certify this turn."
+        )
 
     # Loop protection: we already blocked this stop once; let it through.
     if payload.get("stop_hook_active"):

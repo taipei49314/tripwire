@@ -53,6 +53,14 @@ stdlib 測試＋自家 dogfood（tripwire repo 自帶 `.claude/settings.json` �
 | A6 | 非 git 目錄 → 放行 `{}`（hook 不該綁架無關工作） |
 | A7 | 上述行為全部由 `python -m unittest` 鎖住，測試不碰網路 |
 
+**M0 修訂紀錄（2026-09-01，狗糧第一天）**：實裝到 cell-shift 後第一次實彈即發現
+wrapper 的 fail-open 暗道——PowerShell 管線在 stdin 前置 UTF-8 BOM → `json.load` 失敗 →
+舊版退回 `os.getcwd()`（非 git 目錄）→ A6 靜默放行。裁判（greenwash）全程判決正確，
+洞在 tripwire 包裝層的錯誤處理哲學：**payload 壞掉不准退回猜測，一律 fail-closed**。
+修正並「新增」兩條鎖（不弱化任何原判準）：A8＝帶 BOM 的有效 payload 照常把關；
+A9＝非 JSON 的 stdin → fail-closed block。生產路徑（Claude Code 的乾淨 stdin JSON）
+自始未受影響；此洞只在手動／管線呼叫時可達。
+
 ### M1 — 提交閘與收據閘
 
 PreToolUse 攔 `git commit` / `git push`（含已 commit 範圍掃描）；walkaround 收據接 Stop 閘
