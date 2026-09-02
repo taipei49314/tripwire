@@ -12,6 +12,9 @@ Merge enforcement is a required status check, not a local hook.
 A workflow file is not that check: yaml existing does not mean the
 ruleset is applied. Owner must POST .github/required-ruleset.json.
 M4 does not fix local --no-verify.
+CODEOWNERS is not a required review. A CODEOWNERS file without a
+ruleset require_code_owner_review does not block a merge.
+
 """
 
 

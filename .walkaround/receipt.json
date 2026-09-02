@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "verdict": "ADMITTED",
+  "code": "ADMITTED",
+  "reason": "contract held and required organs passed",
+  "contract": {
+    "schema_version": 1,
+    "goal": "tripwire dogfood: Stop four-gate field on this repo",
+    "allowed_paths": [],
+    "forbidden_paths": [
+      ".walkaround/**"
+    ],
+    "required_organs": [
+      "o"
+    ],
+    "done_predicates": [
+      "done",
+      "做完",
+      "finished"
+    ],
+    "require_observe": true,
+    "require_work": true
+  },
+  "contract_digest": "5187511c2e2821aeca6ca3c5d28db9cb05b160cc00b4767d80a8abf8983ba363",
+  "events": [
+    {
+      "seq": 0,
+      "kind": "write",
+      "digest": "887481900ef2e086c189571cf77be330f4ca728d02faa756be61ce75951c2b7d",
+      "path": "SPEC.md"
+    },
+    {
+      "seq": 1,
+      "kind": "observe",
+      "digest": "c5c82911a3e9036f98f8963beb177173d1d0cd3379698ad41e52316b71dafbb2",
+      "paths": [
+        "SPEC.md"
+      ]
+    },
+    {
+      "seq": 2,
+      "kind": "organ",
+      "digest": "caeada33989d7aaf2e0a2cfc309755f269bee4524104f2b56e0e969f67834c59",
+      "organ_id": "o",
+      "ran": true,
+      "outcome": "PASS",
+      "output_digest": "abababababababababababababababababababababababababababababababab",
+      "detail": ""
+    },
+    {
+      "seq": 3,
+      "kind": "close",
+      "digest": "8ab606844b238ae4810bbbf9f77e35dbdbaeda9332f94f546828aae31cfb2d59",
+      "claim": "done"
+    }
+  ],
+  "trace_digest": "501d275c14fc15e245414b85a4538d7165f09caf3bce50f77ecc59f0d354f0da",
+  "organ_results": [
+    {
+      "organ_id": "o",
+      "ran": true,
+      "outcome": "PASS",
+      "output_digest": "abababababababababababababababababababababababababababababababab",
+      "detail": ""
+    }
+  ],
+  "declared_organs": [
+    "o"
+  ],
+  "actual_organs": [
+    "o"
+  ],
+  "missing_organs": [],
+  "path_violations": [],
+  "signature": {
+    "kind": "unsigned"
+  }
+}

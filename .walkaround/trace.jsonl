@@ -1,0 +1,4 @@
+{"digest":"887481900ef2e086c189571cf77be330f4ca728d02faa756be61ce75951c2b7d","kind":"write","path":"SPEC.md","seq":0}
+{"digest":"c5c82911a3e9036f98f8963beb177173d1d0cd3379698ad41e52316b71dafbb2","kind":"observe","paths":["SPEC.md"],"seq":1}
+{"detail":"","digest":"caeada33989d7aaf2e0a2cfc309755f269bee4524104f2b56e0e969f67834c59","kind":"organ","organ_id":"o","outcome":"PASS","output_digest":"abababababababababababababababababababababababababababababababab","ran":true,"seq":2}
+{"claim":"done","digest":"8ab606844b238ae4810bbbf9f77e35dbdbaeda9332f94f546828aae31cfb2d59","kind":"close","seq":3}
