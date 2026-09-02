@@ -68,6 +68,11 @@ states the residual: Claude PreToolUse still sees `git commit --no-verify`;
 a human CLI `--no-verify` skips git hooks and tripwire (tripwire is not
 a git hook). Merge enforcement is a required status check. Not solved.
 
+**M4 — required status check (criteria frozen, not landed).** SPEC
+CI1–CI11: vendored greenwash @ v0.1.47 on the PR/push range as GitHub
+job `tripwire`. Session gates stay off CI. A workflow file is not
+enforcement; the owner must apply `.github/required-ruleset.json`.
+
 Honest scope note (greenwash's own warning): a local hook is an author-side
 convenience. Merge-level enforcement is a **required status check**; tripwire
 does not pretend otherwise.

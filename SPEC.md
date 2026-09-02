@@ -21,7 +21,8 @@ phaseledger、nullbench、unasked、RepoPassport、smallestlie）熔成一個可
 
 | 層 | 機制 | 內容 | 信任性質 |
 | --- | --- | --- | --- |
-| 執法 | Claude Code hooks（Stop / PreToolUse） | greenwash 停手閘、walkaround 收據閘、phaseledger 關卡 | harness 強制，agent 繞不過 |
+| 執法 | Claude Code hooks（Stop / PreToolUse） | greenwash 停手閘、walkaround 收據閘、phaseledger 關卡、charterlock | harness 強制，agent 繞不過；人類終端 `--no-verify` 仍繞過（tripwire 不是 git hook） |
+| 執法（merge） | GitHub required status check | vendored greenwash 掃 PR/push range（**M4**） | GitHub 強制；**workflow 檔不是 enforcement，ruleset 才是** |
 | 查詢 | MCP server（stdio） | trust-meter 評分、nullbench 預註冊帳本、收據查驗、unasked / RepoPassport 調查 | 便利與可觀測，非 enforcement |
 | 方法論 | skills | 預註冊協定（T 系列）、對抗性驗證劇本、判決書格式 | 教誠實的 agent 做事 |
 
@@ -334,18 +335,70 @@ Claude PreToolUse **仍會**攔 `git commit --no-verify`（那是 harness，不�
 
 **預註冊：** 本表隨本輪 commit 凍結。
 
+### M4 — required status check（本輪凍結判準，尚未實作）
+
+H1 指出洞，不裝成已解。本表是那個洞的 merge 側切片。M0–M3 與 leftover **不得弱化**。H1 仍成立：人類終端 `--no-verify` 仍繞過本地 hook；M4 **不是** git hook，不准改 hooks 去「補」`--no-verify`。
+
+**不是 hooks。** 執法面在 GitHub：default branch 的 **required status check**。workflow 檔會跑、會紅，但沒被 ruleset 指到就攔不住 merge（greenwash README 原文）。套用 ruleset 是 owner 動作；unittest 看不見 GitHub API，不准把 yaml 存在說成 enforcement 已開。
+
+裁判仍是 vendored **greenwash @ v0.1.47**（與 M0 / M1-C 同 pin）。tripwire 不擁有偵測邏輯、不呼叫 greenwash GitHub Action（那是第二個 pin）、不用 `.pyz`（§2）。
+
+**CI 不准跑 session 閘：** walkaround 收據、phaseledger 關卡、charterlock measure 都是作者／agent 場次產物，不是 merge 差分。MCP 與 skills 不是執法。
+
+範圍：
+
+| 產物 | 職責 |
+| --- | --- |
+| `scripts/ci_greenwash.py` | 可單測進入點。argv 一個 git range；缺參數或 vendor 缺失或 `git rev-parse` 解析不了 range → exit ≠ 0，原文含 `Failing closed`。不猜 `HEAD~1`。 |
+| `.github/workflows/*.yml` | 算 range，呼叫進入點。job **id 與 name 都是 `tripwire`**（status check context 是 job 名，不是檔名） |
+| `.github/required-ruleset.json` | 給 owner 套用的 payload；context `tripwire` |
+
+Range（workflow 算，腳本不猜）：
+
+| 事件 | range |
+| --- | --- |
+| `pull_request` | `github.event.pull_request.base.sha...HEAD`（三點） |
+| `push` 且 `before` 不是 40 個 `0` | `before...HEAD`（三點） |
+| `push` 且 `before` 全零、HEAD 有 parent | `HEAD~1...HEAD` |
+| `push` 且 `before` 全零、HEAD 無 parent | 進入點不跑 greenwash，exit 0（與 M1-C 根 commit 殘差同形） |
+
+觸發：`pull_request` 與對 default branch 的 `push`。**不用** `pull_request_target`。`permissions: contents: read`。checkout `persist-credentials: false`。`uses:` 必須 40-char commit SHA，禁止 `@v4` 浮動 tag。`--fail-on high`。checkout 必須深到能解析 range 左側；解析失敗走進入點 fail-closed，不准改掃 `HEAD~1` 矇混。
+
+驗收（全部成立才標 M4 done）。實作前本表先隨本 commit 凍結。
+
+| # | 判準 |
+| --- | --- |
+| CI1 | workflow 裡 job id 與 `name` 皆為 `tripwire` |
+| CI2 | 該 job 呼叫 `scripts/ci_greenwash.py`，且進入點用 vendored `vendor/greenwash/src` 跑 `python -m greenwash check <range> --fail-on high` |
+| CI3 | 進入點：缺 argv / 缺 vendor / range 左側不存在 → exit ≠ 0，text 含 `Failing closed` |
+| CI4 | workflow 對 `pull_request` 組 `base.sha...HEAD` |
+| CI5 | workflow 對 `push` 組 `before...HEAD`（全零 before 走上面那列，不是一律 `HEAD~1`） |
+| CI6 | workflow 與進入點原始碼不含 `walkaround`、`phaseledger`、`charterlock`、`tripwire_mcp`、`unasked` |
+| CI7 | 所有 `uses:` 為 40-char SHA |
+| CI8 | `.github/required-ruleset.json`：`enforcement: active`、include `~DEFAULT_BRANCH`、`required_status_checks` context 為 `tripwire`、`strict_required_status_checks_policy: true` |
+| CI9 | 進入點對「弱化斷言、無產品變更」的已 commit range → exit ≠ 0（與 M0 A2 同形 fixture） |
+| CI10 | `python -m unittest` 鎖 CI1–CI9，測試不碰網路 |
+| CI11 | README 或 `hooks/tripwire_honesty.py` 載明：workflow 存在 ≠ ruleset 已套用；M4 不解本地 `--no-verify` |
+
+**殘差（接受）：** owner 沒 POST ruleset 則 job 只是報告。admin bypass / 刪 ruleset 是 GitHub 威脅模型（greenwash THREATMODEL #88），tripwire 看不見。刪掉 workflow 的 PR 在 ruleset 已套用時會因缺 context 而不能合；ruleset 沒套用則攔不住。本輪不做 CODEOWNERS、SARIF、PR review comment。
+
+**預註冊：** 本表隨本 commit 凍結。開跑後不得改判準來遷就實作。
+
 ## 4. 明確不做
 
 - 不修改、不 fork、不 patch 任何裁判 repo 的偵測邏輯
 - 不做 LLM 裁判、不連網裁決
 - 不宣稱本地 hook 是完整 enforcement（required check 才是，見 §0）
 - 不在 M0 摻入 M1+ 的範圍
+- 不把 walkaround / phaseledger / charterlock 搬進 CI
+- 不宣稱 `.github/workflows` 檔等於 required check
+- 不用 greenwash GitHub Action 當 tripwire 的裁判 pin
 
 ## 5. 家族地圖（資產 → 層）
 
 | 裁判 repo | 進入層 | 里程碑 |
 | --- | --- | --- |
-| greenwash | hooks | **M0** ＋ **M1-C（範圍掃描）** |
+| greenwash | hooks ＋ required check | **M0** ＋ **M1-C（範圍掃描）** ＋ **M4** |
 | walkaround | hooks | **M1-R** |
 | phaseledger | hooks | **M1-P（本輪）** |
 | trust-meter | MCP | **M2** |
