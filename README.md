@@ -39,18 +39,23 @@ scans HEAD..worktree. Push scans unpushed commits (`oldest^..HEAD` or
 `oldest..HEAD`). A wash already in history that Stop would miss is
 denied at push.
 
-**M1-P — phaseledger checkpoint (this slice).** After greenwash and
+**M1-P — phaseledger checkpoint (landed).** After greenwash and
 walkaround allow, Stop requires `.phaseledger/ledger.json` that
 `phaseledger verify` accepts **and** `status` shows at least one
 `ADVANCED` phase. Empty init is not a checkpoint. Skip-ahead fails
 verify. Vendored [phaseledger](https://github.com/taipei49314/phaseledger)
-@ `v0.6.0`. M1 (hooks) is this plus R and C.
+@ `v0.6.0`.
+
+**M2 — MCP query plane (this slice).** `python mcp/tripwire_mcp.py`
+exposes five frozen tools as JSON-RPC over stdio. This is convenience,
+never a hook. `receipt.verify` uses vendored walkaround. Missing
+judges fail closed. RepoPassport is not invoked.
 
 Honest scope note (greenwash's own warning): a local hook is an author-side
 convenience. Merge-level enforcement is a **required status check**; tripwire
 does not pretend otherwise.
 
-## Install (M0 + M1-R + M1-C + M1-P)
+## Install (M0 + M1 + M2)
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1
@@ -69,7 +74,8 @@ and prints the Stop-hook snippet to paste into a target repo's
 | greenwash | hooks | **M0** + **M1-C** |
 | walkaround | hooks | **M1-R** |
 | phaseledger | hooks | **M1-P** |
-| trust-meter · nullbench · unasked · RepoPassport | MCP | M2 |
+| trust-meter · nullbench · unasked | MCP | **M2** |
+| RepoPassport | MCP | M2 residual |
 | T-series pre-registration method | skills | M3 |
 
 Roadmap and frozen acceptance criteria: [SPEC.md](SPEC.md).

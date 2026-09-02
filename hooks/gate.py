@@ -40,6 +40,27 @@ def phaseledger_root() -> str:
     return os.path.join(tripwire_root(), "vendor", "phaseledger")
 
 
+def trust_meter_root() -> str:
+    override = os.environ.get("TRIPWIRE_TRUST_METER_SRC")
+    if override:
+        return override
+    return os.path.join(tripwire_root(), "vendor", "trust-meter")
+
+
+def nullbench_root() -> str:
+    override = os.environ.get("TRIPWIRE_NULLBENCH_SRC")
+    if override:
+        return override
+    return os.path.join(tripwire_root(), "vendor", "nullbench")
+
+
+def unasked_root() -> str:
+    override = os.environ.get("TRIPWIRE_UNASKED_SRC")
+    if override:
+        return override
+    return os.path.join(tripwire_root(), "vendor", "unasked")
+
+
 def is_git_repo(cwd: str) -> bool:
     try:
         probe = subprocess.run(

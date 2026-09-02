@@ -194,10 +194,47 @@ measure。真正的 merge enforcement 仍是 required check（§0）。
 
 **預註冊：** 本表隨本輪 commit 凍結。開跑後不得改判準來遷就實作。
 
-### M2 — MCP server
+### M2 — MCP 查詢面（本輪）
 
-stdio MCP：`trust.score`（trust-meter）、`ledger.preregister` / `ledger.score`（nullbench）、
-`receipt.verify`（walkaround）、`repo.investigate`（unasked / RepoPassport）。判準屆時另立。
+**不是執法。** MCP 給 agent 自己調；hooks 不准改去呼叫 MCP（§0、§1）。
+範圍：`mcp/tripwire_mcp.py` stdio JSON-RPC 2.0（Content-Length 框，兼讀 NDJSON）。
+裁判仍 pin、不 patch；缺 vendor → `isError: true`，fail-closed。tripwire 不解析、
+不修飾判決原文。
+
+凍結工具名（`tools/list` 必須恰好這五個，順序穩定）：
+
+| Tool | 裁判 / pin | 呼叫 |
+| --- | --- | --- |
+| `trust.score` | trust-meter @ **v0.2.1** | `python -m trust_meter.cli --json --no-config <target>` |
+| `ledger.preregister` | nullbench @ **v0.8.2** | `python -m nullbench freeze --study <study> --latest` |
+| `ledger.score` | nullbench @ **v0.8.2** | `python -m nullbench settle --study <study>` |
+| `receipt.verify` | walkaround @ **v0.4.1** | `python -m walkaround --root <root> verify` |
+| `repo.investigate` | unasked @ **v0.4.0** | `python -m unasked doctor --workspace <workspace>` |
+
+`repo.investigate` 本輪是 harness 健康檢查（`doctor`），不是一次完整
+Explorer 調查。RepoPassport 本輪不呼叫（Go 執行檔，殘差）。
+
+參數皆為字串路徑。缺參數 → `isError`。未知 tool 名 → `isError`。
+惡形 JSON-RPC → JSON-RPC error（parse -32700 / invalid -32600）。
+
+驗收（全部成立才標 M2 done）。M0 / M1 **不得弱化**。
+
+| # | 判準 |
+| --- | --- |
+| M2-1 | `initialize` 回 `protocolVersion`、`serverInfo.name = tripwire`、`capabilities.tools` |
+| M2-2 | `tools/list` 恰好五個名字，順序同上 |
+| M2-3 | 未知 tool → `isError: true`，exit 路徑仍 0（JSON-RPC result，不是 process crash） |
+| M2-4 | 缺 vendor → `isError: true`，reason 含 `Failing closed` |
+| M2-5 | `receipt.verify` 對已有 ADMITTED 收據 → `isError` 假，text 含 `ADMITTED` |
+| M2-6 | `receipt.verify` 無收據 → `isError` 真（walkaround hook/verify 非 0 原文） |
+| M2-7 | MCP **沒有**掛進 Stop / PreToolUse |
+| M2-8 | stdlib unittest，測試不碰網路 |
+
+**殘差：** nullbench 依賴 typer/numpy，本輪測試不要求 live freeze/settle
+（M2-4 鎖缺 vendor）。完整 `unasked investigate` 與 RepoPassport `verify`
+不在本輪。MCP 被 `--no-verify` 或關掉 server 等於沒查詢，不是執法洞。
+
+**預註冊：** 本表隨本輪 commit 凍結。
 
 ### M3 — skills
 
@@ -217,9 +254,10 @@ stdio MCP：`trust.score`（trust-meter）、`ledger.preregister` / `ledger.scor
 | greenwash | hooks | **M0** ＋ **M1-C（範圍掃描）** |
 | walkaround | hooks | **M1-R** |
 | phaseledger | hooks | **M1-P（本輪）** |
-| trust-meter | MCP | M2 |
-| nullbench | MCP | M2 |
-| unasked / RepoPassport | MCP | M2 |
+| trust-meter | MCP | **M2** |
+| nullbench | MCP | **M2**（pin；live settle 殘差） |
+| unasked | MCP | **M2**（doctor） |
+| RepoPassport | MCP | M2 殘差（未呼叫） |
 | charterlock | 信任模型（§0）＋ M1 收據語義 | — |
 | smallestlie | M2 之後評估（對抗性探針工具） | — |
 | T 系列方法論（cell-shift T2–T6 實踐） | skills | M3 |

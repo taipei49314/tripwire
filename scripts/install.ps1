@@ -9,12 +9,21 @@ $WalkaroundRepo = "taipei49314/walkaround"
 $WalkaroundTag = "v0.4.1"
 $PhaseledgerRepo = "https://github.com/taipei49314/phaseledger.git"
 $PhaseledgerTag = "v0.6.0"
+$TrustMeterRepo = "taipei49314/trust-meter"
+$TrustMeterTag = "v0.2.1"
+$UnaskedRepo = "taipei49314/unasked"
+$UnaskedTag = "v0.4.0"
+$NullbenchRepo = "https://github.com/taipei49314/nullbench.git"
+$NullbenchTag = "v0.8.2"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $Vendor = Join-Path $Root "vendor"
 $Target = Join-Path $Vendor "greenwash"
 $WalkaroundTarget = Join-Path $Vendor "walkaround"
 $PhaseledgerTarget = Join-Path $Vendor "phaseledger"
+$TrustMeterTarget = Join-Path $Vendor "trust-meter"
+$UnaskedTarget = Join-Path $Vendor "unasked"
+$NullbenchTarget = Join-Path $Vendor "nullbench"
 
 if (Test-Path $Target) {
     Write-Host "vendor/greenwash already present - removing for a clean pin."
@@ -57,6 +66,36 @@ $plVersion = python -m phaseledger --version
 if ($LASTEXITCODE -ne 0) { throw "phaseledger self-check failed" }
 if ($plVersion -notmatch "0\.6\.0") { throw "phaseledger pin mismatch: got $plVersion want 0.6.0" }
 Write-Host "vendored judge: $plVersion (pin $PhaseledgerTag)"
+
+if (Test-Path $TrustMeterTarget) {
+    Write-Host "vendor/trust-meter already present - removing for a clean pin."
+    Remove-Item -Recurse -Force $TrustMeterTarget
+}
+cmd /c "gh repo clone $TrustMeterRepo `"$TrustMeterTarget`" -- --quiet --depth 1 --branch $TrustMeterTag"
+if ($LASTEXITCODE -ne 0) { throw "clone of trust-meter@$TrustMeterTag failed" }
+$env:PYTHONPATH = Join-Path $TrustMeterTarget "src"
+$tmVersion = python -m trust_meter.cli --version
+if ($LASTEXITCODE -ne 0) { throw "trust-meter self-check failed" }
+Write-Host "vendored judge: $tmVersion (pin $TrustMeterTag)"
+
+if (Test-Path $UnaskedTarget) {
+    Write-Host "vendor/unasked already present - removing for a clean pin."
+    Remove-Item -Recurse -Force $UnaskedTarget
+}
+cmd /c "gh repo clone $UnaskedRepo `"$UnaskedTarget`" -- --quiet --depth 1 --branch $UnaskedTag"
+if ($LASTEXITCODE -ne 0) { throw "clone of unasked@$UnaskedTag failed" }
+$env:PYTHONPATH = Join-Path $UnaskedTarget "src"
+$unVersion = python -m unasked --version
+if ($LASTEXITCODE -ne 0) { throw "unasked self-check failed" }
+Write-Host "vendored judge: $unVersion (pin $UnaskedTag)"
+
+if (Test-Path $NullbenchTarget) {
+    Write-Host "vendor/nullbench already present - removing for a clean pin."
+    Remove-Item -Recurse -Force $NullbenchTarget
+}
+cmd /c "git clone --quiet --depth 1 --branch $NullbenchTag `"$NullbenchRepo`" `"$NullbenchTarget`""
+if ($LASTEXITCODE -ne 0) { throw "clone of nullbench@$NullbenchTag failed" }
+Write-Host "vendored judge: nullbench source pin $NullbenchTag (live CLI needs its own deps; MCP fail-closes if it cannot run)"
 
 $stopHook = Join-Path $Root "hooks\tripwire_stop.py"
 $preHook = Join-Path $Root "hooks\tripwire_pretooluse.py"
