@@ -16,5 +16,6 @@ stdio JSON-RPC 2.0, Content-Length framing. Frozen tools (SPEC §3 M2):
 | `receipt.verify` | walkaround @ v0.4.1 |
 | `repo.investigate` | unasked @ v0.4.0 (`doctor`) |
 | `repo.passport` | RepoPassport @ v0.1.0-alpha.33 |
+| `repo.probe` | smallestlie @ v0.7.1 (`doctor`; `mode=campaign` needs `target`) |
 
 Missing vendor → `isError` fail-closed. Query plane only; not a Stop/CI gate.

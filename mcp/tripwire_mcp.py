@@ -30,6 +30,7 @@ TOOL_ORDER = (
     "receipt.verify",
     "repo.investigate",
     "repo.passport",
+    "repo.probe",
 )
 
 
@@ -60,6 +61,24 @@ TOOLS = [
         ("repo.passport", "root", "RepoPassport verify (query, not a gate)"),
     )
 ]
+TOOLS.append(
+    {
+        "name": "repo.probe",
+        "description": (
+            "smallestlie doctor by default; mode=campaign runs campaign run "
+            "(query, not a gate)"
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "mode": {"type": "string"},
+                "target": {"type": "string"},
+                "catalog": {"type": "string"},
+                "seed": {"type": "string"},
+            },
+        },
+    }
+)
 assert tuple(t["name"] for t in TOOLS) == TOOL_ORDER
 
 
@@ -75,7 +94,13 @@ def _tool_result(text: str, is_error: bool) -> dict:
     return {"content": [{"type": "text", "text": text}], "isError": is_error}
 
 
-def _run_judge(pythonpath: str, argv: list[str], *, pkg_dir: str) -> tuple[int, str]:
+def _run_judge(
+    pythonpath: str,
+    argv: list[str],
+    *,
+    pkg_dir: str,
+    cwd: str | None = None,
+) -> tuple[int, str]:
     if not os.path.isdir(pkg_dir):
         return (
             2,
@@ -91,6 +116,7 @@ def _run_judge(pythonpath: str, argv: list[str], *, pkg_dir: str) -> tuple[int, 
             text=True,
             timeout=TIMEOUT,
             env=env,
+            cwd=cwd,
         )
     except subprocess.TimeoutExpired:
         return 2, f"tripwire: judge timed out after {TIMEOUT}s. Failing closed."
@@ -220,6 +246,38 @@ def _call_tool(name: str, arguments: dict) -> dict:
             return _tool_result(f"tripwire: RepoPassport could not run ({err!r}). Failing closed.", True)
         text = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
         return _tool_result(text or f"repopass exit {result.returncode}", result.returncode != 0)
+    if name == "repo.probe":
+        root = gate.smallestlie_root()
+        pkg = os.path.join(root, "src", "smallestlie")
+        campaign = str(arguments.get("mode") or "").lower() == "campaign"
+        if campaign:
+            target = arguments.get("target")
+            if not target:
+                return _tool_result(
+                    "tripwire: campaign missing target. Failing closed.",
+                    True,
+                )
+            argv = [
+                "-m",
+                "smallestlie",
+                "campaign",
+                "run",
+                "--target",
+                str(target),
+            ]
+            if arguments.get("catalog"):
+                argv.extend(["--catalog", str(arguments["catalog"])])
+            if arguments.get("seed"):
+                argv.extend(["--seed", str(arguments["seed"])])
+        else:
+            argv = ["-m", "smallestlie", "doctor"]
+        code, text = _run_judge(
+            os.path.join(root, "src"),
+            argv,
+            pkg_dir=pkg,
+            cwd=root if os.path.isdir(root) else None,
+        )
+        return _tool_result(text, code != 0)
     return _tool_result(f"tripwire: unknown tool {name!r}. Failing closed.", True)
 
 

@@ -74,6 +74,7 @@ class Protocol(unittest.TestCase):
                 "receipt.verify",
                 "repo.investigate",
                 "repo.passport",
+                "repo.probe",
             ],
         )
 

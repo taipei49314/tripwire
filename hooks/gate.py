@@ -75,6 +75,13 @@ def repopass_root() -> str:
     return os.path.join(tripwire_root(), "vendor", "RepoPassport")
 
 
+def smallestlie_root() -> str:
+    override = os.environ.get("TRIPWIRE_SMALLESTLIE_SRC")
+    if override:
+        return override
+    return os.path.join(tripwire_root(), "vendor", "smallestlie")
+
+
 def is_git_repo(cwd: str) -> bool:
     try:
         probe = subprocess.run(
