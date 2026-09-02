@@ -384,6 +384,41 @@ Range（workflow 算，腳本不猜）：
 
 **預註冊：** 本表隨本 commit 凍結。開跑後不得改判準來遷就實作。
 
+### 評估 smallestlie（本輪結論：不接）
+
+家族圖原列「M2 之後評估」。本輪只評估、凍結結論，**不實作 M5、不 vendor、不加第七個 MCP tool**。M0–M4 與 leftover **不得弱化**；M2.1 的「六個工具」維持。
+
+觀察（2026-09-02，`taipei49314/smallestlie` @ `master`）：
+
+- 一句話：local-first 授權對抗性驗證 harness——找「repo 仍接受的最小謊言」。突變只在 disposable workspace；預設斷網。
+- CLI 存在：`smallestlie doctor`、`campaign run`、`ci-gate`、`ledger verify`。判決詞彙含 `FALSE_ACCEPT_OBSERVED` / `ATTACK_REJECTED` / `INCONCLUSIVE` / `HARNESS_ERROR` / `BLOCKED_BY_POLICY`。它**從不**報 `SECURE`。
+- pyproject `version = 0.7.1`，README 寫 v0.7.0。**git tags 為空**，也沒有 GitHub Release。
+- 倉庫是 **private**。tripwire 已 public。把未發行的 private 樹 pin 進公開產品會讓 `install.ps1` 對外人失敗，也違反「只 pin 公開可重播的 tag」。
+- 它會突變副本、跑 campaign，不是 greenwash 那種決定性 diff oracle。
+
+層級結論：
+
+| 層 | 結論 |
+| --- | --- |
+| Stop / PreToolUse | **不准進**。探針會突變；done-claim / 提交閘不是 campaign 場地 |
+| GitHub required check | **不准進**。M4 的裁判仍是 greenwash；campaign 不是 merge oracle |
+| MCP | **以後可以**（查詢）。形狀會像 `repo.investigate`：預設 `doctor`，完整 `campaign` 另參 |
+| skills | 可教 agent 何時調探針；不是執法 |
+
+**不接的硬條件（任一成立就不 vendor）：** 沒有 git tag；或倉庫對 tripwire 的使用者不可 clone。
+
+有 annotated tag、且公開（或 tripwire 使用者都讀得了）之後，才准另開 **M5** 凍結表。M5 若加 tool，必須像 M2.1 一樣**明示修訂** `tools/list` 個數，不得默改 M2-2 / M2.1-1。本輪不准用 `master` HEAD 當 pin。
+
+| # | 判準 |
+| --- | --- |
+| E1 | SPEC 本節存在，結論含「不接」與「git tag」 |
+| E2 | `tools/list` 仍恰好六名，不含 `smallestlie` |
+| E3 | Stop、PreToolUse、`scripts/ci_greenwash.py`、workflow 原始碼不含 `smallestlie` |
+| E4 | `scripts/install.ps1` 不含 `smallestlie` |
+| E5 | `python -m unittest` 鎖 E1–E4，測試不碰網路 |
+
+**預註冊：** 本表隨本 commit 凍結。
+
 ## 4. 明確不做
 
 - 不修改、不 fork、不 patch 任何裁判 repo 的偵測邏輯
@@ -393,6 +428,7 @@ Range（workflow 算，腳本不猜）：
 - 不把 walkaround / phaseledger / charterlock 搬進 CI
 - 不宣稱 `.github/workflows` 檔等於 required check
 - 不用 greenwash GitHub Action 當 tripwire 的裁判 pin
+- 不以浮動 HEAD pin smallestlie；沒有 git tag 就不 vendor
 
 ## 5. 家族地圖（資產 → 層）
 
@@ -406,5 +442,5 @@ Range（workflow 算，腳本不猜）：
 | unasked | MCP | **M2** doctor ＋ **M2.1** investigate |
 | RepoPassport | MCP | **M2.1** |
 | charterlock | hooks | **M1-K**（§0 原則仍適用） |
-| smallestlie | M2 之後評估（對抗性探針工具） | — |
+| smallestlie | MCP（評估：待 git tag） | **不接**（本輪） |
 | T 系列方法論 | skills | **M3** |
