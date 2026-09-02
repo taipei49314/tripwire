@@ -63,8 +63,41 @@ A9＝非 JSON 的 stdin → fail-closed block。生產路徑（Claude Code 的�
 
 ### M1 — 提交閘與收據閘
 
-PreToolUse 攔 `git commit` / `git push`（含已 commit 範圍掃描）；walkaround 收據接 Stop 閘
-（宣稱 done 需有入場收據）。判準屆時另立並凍結。
+兩刀。Stop 是「宣稱 done」；PreToolUse 是「把已發生的東西送進歷史」。
+M0 只看工作樹，已 commit 的洗分屬這一層。
+
+**本輪凍結並實作 M1-R（walkaround 收據閘）。** M1-C（PreToolUse 攔
+`git commit` / `git push`）與 phaseledger 關卡仍列在家族地圖，判準尚未凍結，
+不得在本輪宣稱 M1 done。
+
+#### M1-R — walkaround 收據接 Stop（本輪）
+
+範圍：既有 `hooks/tripwire_stop.py` 在 greenwash 放行之後加一道入場收據閘；
+`scripts/install.ps1` vendor walkaround @ **v0.4.1**（git tag，不 patch）；
+stdlib 測試。裁判邊界不變：tripwire 不讀 walkaround 的規則，只讀
+`walkaround hook` 的 exit 與原文。
+
+Stop 對 harness 就是 done-claim。沒有 `ADMITTED` 收據＝沒進場。
+greenwash 先跑：測試被洗時，即使收據是 `ADMITTED` 也擋（兩閘獨立）。
+walkaround 不重做 freshness；過期收據是它自己的威脅模型（其 THREATMODEL
+row 未宣稱 freshness），本輪不在 wrapper 補。
+
+驗收（全部成立才標 M1-R done）。M0 A1–A9 **不得弱化**：A3 的乾淨樹在
+setUp 植入一張 `ADMITTED` 收據後仍放行，這是組合而非改寫 A3。
+
+| # | 判準 |
+| --- | --- |
+| R1 | `scripts/install.ps1` vendor walkaround @ v0.4.1，自檢 `python -m walkaround version` 印出 `0.4.1` |
+| R2 | git 工作樹、greenwash 放行、**沒有** `.walkaround/receipt.json` → hook stdout `{"decision":"block",...}`，reason 含 `BYPASSED` 或 `no receipt`，exit 0 |
+| R3 | 同上，但存著可 `verify` 的 `ADMITTED` 收據 → stdout `{}`，exit 0 |
+| R4 | 存著 `REFUSED` 或 `INCOMPLETE` 收據 → block，reason 含 walkaround 的 verdict／code 原文 |
+| R5 | 弱化斷言 **加上** `ADMITTED` 收據 → 仍 block，reason 走 greenwash（R 閘不得蓋掉 M0） |
+| R6 | vendored walkaround 缺失、崩潰或逾時 → fail-closed block，reason 註明 engine error |
+| R7 | `stop_hook_active: true` 仍短接到 `{}`（兩閘共用 M0 A4） |
+| R8 | 非 git 目錄仍放行 `{}`（M0 A6） |
+| R9 | 上述由 `python -m unittest` 鎖住，測試不碰網路 |
+
+**預註冊：** 本表隨本輪 commit 凍結。開跑後不得改判準來遷就實作。
 
 ### M2 — MCP server
 
@@ -87,8 +120,8 @@ stdio MCP：`trust.score`（trust-meter）、`ledger.preregister` / `ledger.scor
 | 裁判 repo | 進入層 | 里程碑 |
 | --- | --- | --- |
 | greenwash | hooks | **M0** |
-| walkaround | hooks | M1 |
-| phaseledger | hooks | M1 |
+| walkaround | hooks | **M1-R（本輪）** |
+| phaseledger | hooks | M1（未凍結） |
 | trust-meter | MCP | M2 |
 | nullbench | MCP | M2 |
 | unasked / RepoPassport | MCP | M2 |

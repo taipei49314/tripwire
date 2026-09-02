@@ -1,14 +1,17 @@
-# tripwire installer (M0): vendor the pinned judge and self-check.
+# tripwire installer (M0 + M1-R): vendor pinned judges and self-check.
 # Judges are pinned by git tag and never patched (SPEC section 2).
 
 $ErrorActionPreference = "Stop"
 
 $GreenwashRepo = "https://github.com/taipei49314/greenwash.git"
 $GreenwashTag = "v0.1.47"
+$WalkaroundRepo = "taipei49314/walkaround"
+$WalkaroundTag = "v0.4.1"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $Vendor = Join-Path $Root "vendor"
 $Target = Join-Path $Vendor "greenwash"
+$WalkaroundTarget = Join-Path $Vendor "walkaround"
 
 if (Test-Path $Target) {
     Write-Host "vendor/greenwash already present - removing for a clean pin."
@@ -16,16 +19,28 @@ if (Test-Path $Target) {
 }
 New-Item -ItemType Directory -Force $Vendor | Out-Null
 
-# git chats on stderr (annotated-tag + shallow warnings); only the exit code
-# decides. Stringify the stream so EAP=Stop does not mistake chatter for failure.
-& git clone --quiet --depth 1 --branch $GreenwashTag $GreenwashRepo $Target 2>&1 |
-    ForEach-Object { "$_" } | Out-Null
+# git writes annotated-tag peel warnings to stderr. EAP=Stop treats native
+# stderr as terminating; cmd /c lets only the exit code decide.
+cmd /c "git clone --quiet --depth 1 --branch $GreenwashTag `"$GreenwashRepo`" `"$Target`""
 if ($LASTEXITCODE -ne 0) { throw "clone of greenwash@$GreenwashTag failed" }
 
 $env:PYTHONPATH = (Join-Path $Target "src")
 $version = python -m greenwash --version
 if ($LASTEXITCODE -ne 0) { throw "greenwash self-check failed" }
 Write-Host "vendored judge: $version (pin $GreenwashTag)"
+
+if (Test-Path $WalkaroundTarget) {
+    Write-Host "vendor/walkaround already present - removing for a clean pin."
+    Remove-Item -Recurse -Force $WalkaroundTarget
+}
+cmd /c "gh repo clone $WalkaroundRepo `"$WalkaroundTarget`" -- --quiet --depth 1 --branch $WalkaroundTag"
+if ($LASTEXITCODE -ne 0) { throw "clone of walkaround@$WalkaroundTag failed" }
+
+$env:PYTHONPATH = $WalkaroundTarget
+$waVersion = python -m walkaround version
+if ($LASTEXITCODE -ne 0) { throw "walkaround self-check failed" }
+if ($waVersion.Trim() -ne "0.4.1") { throw "walkaround pin mismatch: got $waVersion want 0.4.1" }
+Write-Host "vendored judge: walkaround $waVersion (pin $WalkaroundTag)"
 
 $hook = Join-Path $Root "hooks\tripwire_stop.py"
 Write-Host ""

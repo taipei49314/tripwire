@@ -19,18 +19,26 @@ judges by git tag and never edits their logic ([SPEC.md](SPEC.md) §2).
 
 ## Status
 
-**M0 — greenwash stop gate.** When the agent tries to finish a turn, the
-vendored [greenwash](https://github.com/taipei49314/greenwash) (pinned
+**M0 — greenwash stop gate (landed).** When the agent tries to finish a turn,
+the vendored [greenwash](https://github.com/taipei49314/greenwash) (pinned
 `v0.1.47`) checks HEAD..worktree for verification-layer tampering — weakened
 assertions, new skips, rewritten goldens, relaxed CI — and blocks the stop
 with the finding fed back to the agent. Fail-closed: a missing, crashed, or
 hung judge blocks too.
 
+**M1-R — walkaround receipt gate (this slice).** The same Stop is a
+done-claim. After greenwash allows, tripwire requires a walkaround
+`ADMITTED` receipt (`walkaround hook`). No receipt is `BYPASSED`. A
+`REFUSED` / `INCOMPLETE` receipt is blocked with the verdict passed
+through. Vendored [walkaround](https://github.com/taipei49314/walkaround)
+@ `v0.4.1`. M1-C (commit/push PreToolUse) and phaseledger are not this
+slice; M1 is not done.
+
 Honest scope note (greenwash's own warning): a local hook is an author-side
 convenience. Merge-level enforcement is a **required status check**; tripwire
 does not pretend otherwise.
 
-## Install (M0)
+## Install (M0 + M1-R)
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1
@@ -47,7 +55,8 @@ and prints the Stop-hook snippet to paste into a target repo's
 | Judge | Layer | Milestone |
 | --- | --- | --- |
 | greenwash | hooks | **M0 (landed)** |
-| walkaround · phaseledger | hooks | M1 |
+| walkaround | hooks | **M1-R (this slice)** |
+| phaseledger | hooks | M1 (not frozen) |
 | trust-meter · nullbench · unasked · RepoPassport | MCP | M2 |
 | T-series pre-registration method | skills | M3 |
 
