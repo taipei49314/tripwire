@@ -22,6 +22,8 @@ $CharterlockRepo = "https://github.com/taipei49314/charterlock.git"
 $CharterlockTag = "v0.1.0"
 $RepoPassRepo = "https://github.com/taipei49314/RepoPassport.git"
 $RepoPassTag = "v0.1.0-alpha.33"
+$SmallestlieRepo = "https://github.com/taipei49314/smallestlie.git"
+$SmallestlieTag = "v0.7.1"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $Vendor = Join-Path $Root "vendor"
@@ -33,6 +35,7 @@ $UnaskedTarget = Join-Path $Vendor "unasked"
 $NullbenchTarget = Join-Path $Vendor "nullbench"
 $CharterlockTarget = Join-Path $Vendor "charterlock"
 $RepoPassTarget = Join-Path $Vendor "RepoPassport"
+$SmallestlieTarget = Join-Path $Vendor "smallestlie"
 
 if (Test-Path $Target) {
     Write-Host "vendor/greenwash already present - removing for a clean pin."
@@ -129,6 +132,18 @@ if (Test-Path $RepoPassTarget) {
 cmd /c "git clone --quiet --depth 1 --branch $RepoPassTag `"$RepoPassRepo`" `"$RepoPassTarget`""
 if ($LASTEXITCODE -ne 0) { throw "clone of RepoPassport@$RepoPassTag failed" }
 Write-Host "vendored judge: RepoPassport source pin $RepoPassTag (go run ./cmd/repopass)"
+
+if (Test-Path $SmallestlieTarget) {
+    Write-Host "vendor/smallestlie already present - removing for a clean pin."
+    Remove-Item -Recurse -Force $SmallestlieTarget
+}
+cmd /c "git clone --quiet --depth 1 --branch $SmallestlieTag `"$SmallestlieRepo`" `"$SmallestlieTarget`""
+if ($LASTEXITCODE -ne 0) { throw "clone of smallestlie@$SmallestlieTag failed" }
+$env:PYTHONPATH = Join-Path $SmallestlieTarget "src"
+$slVersion = python -m smallestlie --version
+if ($LASTEXITCODE -ne 0) { throw "smallestlie self-check failed" }
+if ($slVersion -notmatch "0\.7\.1") { throw "smallestlie pin mismatch: got $slVersion want 0.7.1" }
+Write-Host "vendored judge: $slVersion (pin $SmallestlieTag)"
 
 $stopHook = Join-Path $Root "hooks\tripwire_stop.py"
 $preHook = Join-Path $Root "hooks\tripwire_pretooluse.py"

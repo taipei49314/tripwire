@@ -57,11 +57,11 @@ verify. Vendored [phaseledger](https://github.com/taipei49314/phaseledger)
 `NO_CHARTER`. Collapsed / incomplete verdicts pass through.
 
 **M2 — MCP query plane (landed).** `python mcp/tripwire_mcp.py`
-exposes six tools as JSON-RPC over stdio (M2.1 adds `repo.passport`).
-Convenience, never a hook. `repo.investigate` defaults to unasked
-`doctor`; `mode=full` runs `investigate`. Live nullbench freeze
-requires typer/numpy (`pip install -e vendor/nullbench`). Missing
-judges fail closed.
+exposes seven tools as JSON-RPC over stdio (M2.1 adds `repo.passport`;
+M5 adds `repo.probe`). Convenience, never a hook. `repo.investigate`
+defaults to unasked `doctor`; `mode=full` runs `investigate`. Live
+nullbench freeze requires typer/numpy (`pip install -e vendor/nullbench`).
+Missing judges fail closed.
 
 **M3 — skills (landed).** `skills/preregister`, `skills/adversarial-verify`,
 `skills/verdict-format`. Method only; hooks do not read them.
@@ -80,9 +80,10 @@ Session gates stay off CI. A workflow file is not enforcement; apply
 gh api repos/OWNER/REPO/rulesets --method POST --input .github/required-ruleset.json
 ```
 
-**smallestlie — evaluated, not connected.** Adversarial probe, MCP-shaped
-later. Annotated tag `v0.7.1` exists and the repo is public, so SPEC §2
-would allow a pin. Still not a Stop/CI gate; connecting it is a later slice.
+**M5 — smallestlie MCP probe (landed).** Seventh tool `repo.probe`
+vendors [smallestlie](https://github.com/taipei49314/smallestlie) @
+`v0.7.1`. Default is `doctor`. `mode=campaign` needs `target` and runs
+`campaign run` (not exercised live in unittest). Not a Stop/CI gate.
 
 **Dogfood.** This tree carries `.walkaround/`, `.phaseledger/` (plan
 ADVANCED only), and `.charterlock/` (vendored CHARTER_SPLIT fixture, not
@@ -119,7 +120,7 @@ and prints the Stop-hook snippet to paste into a target repo's
 | RepoPassport | MCP | **M2.1** |
 | charterlock | hooks | **M1-K** |
 | T-series pre-registration | skills | **M3** |
-| smallestlie | MCP (evaluated) | **not connected** |
+| smallestlie | MCP (`repo.probe`) | **M5** (not a Stop/CI gate) |
 
 Roadmap and frozen acceptance criteria: [SPEC.md](SPEC.md).
 

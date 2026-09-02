@@ -419,9 +419,41 @@ Range（workflow 算，腳本不猜）：
 
 **預註冊：** 本表隨本 commit 凍結。
 
+### M5 — smallestlie MCP 探針（本輪）
+
+評估節的硬條件已滿足：annotated tag **`v0.7.1`**，倉庫 **public**。本表隨落地 commit 凍結後才實作。
+M0–M4、leftover、評估節 **E1**（該輪紀錄）與 **E3**（執法路徑不含 smallestlie）不得弱化。
+**E2／E4 由本表明示修訂**（同 M2.1 修訂 M2-2）：`tools/list` 七名；`install.ps1` vendor smallestlie @ v0.7.1。不得默改 M2-2／M2.1-1 的前六名與順序。
+
+**不是執法。** 評估節層級結論仍成立：不准進 Stop / PreToolUse / GitHub required check。MCP 被關掉等於沒查詢，不是執法洞。
+
+`tools/list` **七**個名字，前六不變，第七 `repo.probe`。
+
+| Tool | 裁判 / pin | 呼叫 |
+| --- | --- | --- |
+| `repo.probe` | smallestlie @ **v0.7.1** | 無 `mode` 或非 `campaign` → `python -m smallestlie doctor`。`mode=campaign` 且有 `target` → `python -m smallestlie campaign run --target <target>`（可選 `catalog`、`seed`）。`mode=campaign` 缺 `target` → `isError`，text 含 `campaign` 或 `missing`。 |
+
+缺 vendor → `isError: true`，text 含 `Failing closed`。判決原文透傳；doctor 因 python<3.12 等自身 FAIL 不准在 tripwire 層改成 PASS。
+
+驗收（全部成立才標 M5 done）：
+
+| # | 判準 |
+| --- | --- |
+| M5-1 | `tools/list` 第七名 `repo.probe`；前六名與順序仍是 M2.1 那六個 |
+| M5-2 | `repo.probe` 無 mode → 呼叫 `smallestlie doctor`，text 含 `doctor`。缺 vendor 才 wrapper `Failing closed` |
+| M5-3 | `mode=campaign` 缺 `target` → `isError`，text 含 `campaign` 或 `missing` |
+| M5-4 | 缺 vendor → `isError`，text 含 `Failing closed` |
+| M5-5 | Stop、PreToolUse、`scripts/ci_greenwash.py`、workflow 原始碼仍不含 `smallestlie`（E3） |
+| M5-6 | `scripts/install.ps1` vendor smallestlie @ v0.7.1，自檢 `python -m smallestlie --version` 含 `0.7.1` |
+| M5-7 | `python -m unittest` 鎖 M5-1–M5-6，測試不碰網路 |
+
+**殘差：** 本輪不跑 live `campaign run`（會突變 disposable 副本）。skills 可教何時調探針，本輪不新增 skill 判準。python 3.11 上 doctor 會 FAIL `python>=3.12`——那是裁判原文，不是 tripwire 包裝洞。
+
+**預註冊：** 本表隨本 commit 凍結。開跑後不得改判準來遷就實作。
+
 ### Dogfood 種場與 CODEOWNERS（本輪）
 
-不弱化 M0–M4 / leftover / smallestlie 評估。不把 session 閘搬進 CI（M4 CI6 仍成立）。
+不弱化 M0–M4 / leftover / smallestlie 評估（M5 明示修訂 E2／E4 除外）。不把 session 閘搬進 CI（M4 CI6 仍成立）。
 
 Stop 四閘要在 tripwire 自己的樹上有場，否則 Claude 開這個 repo 每次 done-claim 都 `NO_LEDGER` / `NO_CHARTER` / 沒收據。
 
@@ -454,7 +486,7 @@ CODEOWNERS：`.github/` 歸 `@taipei49314`。**單人倉庫不開** ruleset `req
 - 不把 walkaround / phaseledger / charterlock 搬進 CI
 - 不宣稱 `.github/workflows` 檔等於 required check
 - 不用 greenwash GitHub Action 當 tripwire 的裁判 pin
-- 不以浮動 HEAD pin smallestlie；沒有 git tag 就不 vendor
+- 不以浮動 HEAD pin smallestlie；沒有 git tag 就不 vendor（M5 pin 是 annotated `v0.7.1`）
 - 不在單人倉庫開啟 required code-owner review（會卡死 owner PR）
 
 ## 5. 家族地圖（資產 → 層）
@@ -469,5 +501,5 @@ CODEOWNERS：`.github/` 歸 `@taipei49314`。**單人倉庫不開** ruleset `req
 | unasked | MCP | **M2** doctor ＋ **M2.1** investigate |
 | RepoPassport | MCP | **M2.1** |
 | charterlock | hooks | **M1-K**（§0 原則仍適用） |
-| smallestlie | MCP（評估：待 git tag） | **不接**（本輪） |
+| smallestlie | MCP（`repo.probe`） | **M5**（Stop／CI 仍不接） |
 | T 系列方法論 | skills | **M3** |
