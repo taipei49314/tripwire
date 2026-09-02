@@ -24,6 +24,9 @@ WALKAROUND_ROOT = os.environ.get("TRIPWIRE_WALKAROUND_SRC") or os.path.join(
 PHASELEDGER_ROOT = os.environ.get("TRIPWIRE_PHASELEDGER_SRC") or os.path.join(
     ROOT, "vendor", "phaseledger"
 )
+CHARTERLOCK_ROOT = os.environ.get("TRIPWIRE_CHARTERLOCK_SRC") or os.path.join(
+    ROOT, "vendor", "charterlock"
+)
 
 STRONG_TEST = "def test_invoice_total():\n    total = 105\n    assert total == 105\n"
 WEAK_TEST = "def test_invoice_total():\n    total = 105\n    assert total > 0\n"
@@ -96,6 +99,20 @@ def plant_plan_advanced(repo: str) -> None:
     ledger.advance("plan")
 
 
+def plant_charter(repo: str, case: str = "key_split_frozen") -> None:
+    src = os.path.join(CHARTERLOCK_ROOT, "fixtures")
+    case_dir = os.path.join(src, case)
+    dest = os.path.join(repo, ".charterlock")
+    os.makedirs(dest, exist_ok=True)
+    for name in ("charter.json", "executor.json", "journey.json"):
+        shutil.copy(os.path.join(case_dir, name), os.path.join(dest, name))
+    shutil.copy(os.path.join(src, "keyring.json"), os.path.join(dest, "keyring.json"))
+    with open(os.path.join(case_dir, "observations.json"), encoding="utf-8") as fh:
+        obs = json.loads(fh.read())
+    with open(os.path.join(dest, "first_exec_at"), "w", encoding="utf-8") as fh:
+        fh.write(str(obs["first_exec_at"]) + "\n")
+
+
 def plant_incomplete(repo: str) -> None:
     if WALKAROUND_ROOT not in sys.path:
         sys.path.insert(0, WALKAROUND_ROOT)
@@ -128,6 +145,10 @@ class StopGateTest(unittest.TestCase):
             os.path.isdir(os.path.join(PHASELEDGER_ROOT, "phaseledger")),
             "vendored phaseledger missing - run scripts/install.ps1 first",
         )
+        self.assertTrue(
+            os.path.isdir(os.path.join(CHARTERLOCK_ROOT, "charterlock")),
+            "vendored charterlock missing - run scripts/install.ps1 first",
+        )
         self.tmp = tempfile.TemporaryDirectory()
         self.repo = self.tmp.name
         git(self.repo, "init", "-q")
@@ -142,6 +163,7 @@ class StopGateTest(unittest.TestCase):
         git(self.repo, "commit", "-q", "-m", "baseline")
         plant_admitted(self.repo)
         plant_plan_advanced(self.repo)
+        plant_charter(self.repo)
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -309,6 +331,33 @@ class StopGateTest(unittest.TestCase):
         code, out, _ = run_hook(
             {"cwd": self.repo},
             env_extra={"TRIPWIRE_PHASELEDGER_SRC": os.path.join(self.repo, "nope")},
+        )
+        self.assertEqual(code, 0)
+        verdict = self.decision(out)
+        self.assertEqual(verdict.get("decision"), "block")
+        self.assertIn("Failing closed", verdict.get("reason", ""))
+
+    def test_k1_no_charter_blocks(self) -> None:
+        shutil.rmtree(os.path.join(self.repo, ".charterlock"))
+        code, out, _ = run_hook({"cwd": self.repo})
+        self.assertEqual(code, 0)
+        verdict = self.decision(out)
+        self.assertEqual(verdict.get("decision"), "block")
+        self.assertIn("NO_CHARTER", verdict.get("reason", ""))
+
+    def test_k3_collapsed_charter_blocks(self) -> None:
+        shutil.rmtree(os.path.join(self.repo, ".charterlock"))
+        plant_charter(self.repo, "naive_self")
+        code, out, _ = run_hook({"cwd": self.repo})
+        self.assertEqual(code, 0)
+        verdict = self.decision(out)
+        self.assertEqual(verdict.get("decision"), "block")
+        self.assertIn("CHARTER_COLLAPSED", verdict.get("reason", ""))
+
+    def test_k4_missing_charterlock_vendor_fails_closed(self) -> None:
+        code, out, _ = run_hook(
+            {"cwd": self.repo},
+            env_extra={"TRIPWIRE_CHARTERLOCK_SRC": os.path.join(self.repo, "nope")},
         )
         self.assertEqual(code, 0)
         verdict = self.decision(out)

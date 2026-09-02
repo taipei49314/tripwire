@@ -15,6 +15,9 @@ $UnaskedRepo = "taipei49314/unasked"
 $UnaskedTag = "v0.4.0"
 $NullbenchRepo = "https://github.com/taipei49314/nullbench.git"
 $NullbenchTag = "v0.8.2"
+$CharterlockRepo = "https://github.com/taipei49314/charterlock.git"
+$CharterlockTag = "v0.1.0"
+$RepoPassRepo = "https://github.com/taipei49314/RepoPassport.git"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $Vendor = Join-Path $Root "vendor"
@@ -24,6 +27,8 @@ $PhaseledgerTarget = Join-Path $Vendor "phaseledger"
 $TrustMeterTarget = Join-Path $Vendor "trust-meter"
 $UnaskedTarget = Join-Path $Vendor "unasked"
 $NullbenchTarget = Join-Path $Vendor "nullbench"
+$CharterlockTarget = Join-Path $Vendor "charterlock"
+$RepoPassTarget = Join-Path $Vendor "RepoPassport"
 
 if (Test-Path $Target) {
     Write-Host "vendor/greenwash already present - removing for a clean pin."
@@ -95,7 +100,31 @@ if (Test-Path $NullbenchTarget) {
 }
 cmd /c "git clone --quiet --depth 1 --branch $NullbenchTag `"$NullbenchRepo`" `"$NullbenchTarget`""
 if ($LASTEXITCODE -ne 0) { throw "clone of nullbench@$NullbenchTag failed" }
-Write-Host "vendored judge: nullbench source pin $NullbenchTag (live CLI needs its own deps; MCP fail-closes if it cannot run)"
+Write-Host "vendored judge: nullbench source pin $NullbenchTag"
+python -m pip install -e $NullbenchTarget -q
+if ($LASTEXITCODE -ne 0) { throw "nullbench pip install failed" }
+$nbVersion = python -m nullbench version
+if ($LASTEXITCODE -ne 0) { throw "nullbench self-check failed" }
+Write-Host "vendored judge: $nbVersion (pin $NullbenchTag)"
+
+if (Test-Path $CharterlockTarget) {
+    Write-Host "vendor/charterlock already present - removing for a clean pin."
+    Remove-Item -Recurse -Force $CharterlockTarget
+}
+cmd /c "git clone --quiet --depth 1 --branch $CharterlockTag `"$CharterlockRepo`" `"$CharterlockTarget`""
+if ($LASTEXITCODE -ne 0) { throw "clone of charterlock@$CharterlockTag failed" }
+$env:PYTHONPATH = $CharterlockTarget
+$clVersion = python -c "import charterlock; print(charterlock.__version__)" 2>$null
+if (-not $clVersion) { $clVersion = "charterlock (no __version__)" }
+Write-Host "vendored judge: $clVersion (pin $CharterlockTag)"
+
+if (Test-Path $RepoPassTarget) {
+    Write-Host "vendor/RepoPassport already present - removing for a clean pin."
+    Remove-Item -Recurse -Force $RepoPassTarget
+}
+cmd /c "git clone --quiet --depth 1 `"$RepoPassRepo`" `"$RepoPassTarget`""
+if ($LASTEXITCODE -ne 0) { throw "clone of RepoPassport failed" }
+Write-Host "vendored judge: RepoPassport source (go run ./cmd/repopass)"
 
 $stopHook = Join-Path $Root "hooks\tripwire_stop.py"
 $preHook = Join-Path $Root "hooks\tripwire_pretooluse.py"
@@ -111,7 +140,7 @@ $snippet = @{
         )
         PreToolUse = @(
             @{
-                matcher = "Bash"
+                matcher = "Write|Edit|Bash"
                 hooks = @(
                     @{ type = "command"; command = "python `"$preHook`"" }
                 )

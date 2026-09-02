@@ -29,6 +29,7 @@ TOOL_ORDER = (
     "ledger.score",
     "receipt.verify",
     "repo.investigate",
+    "repo.passport",
 )
 
 
@@ -51,7 +52,12 @@ TOOLS = [
         ("ledger.preregister", "study", "nullbench freeze --latest (query, not a gate)"),
         ("ledger.score", "study", "nullbench settle (query, not a gate)"),
         ("receipt.verify", "root", "walkaround verify of a stored admission receipt"),
-        ("repo.investigate", "workspace", "unasked doctor on a workspace (not a discovery run)"),
+        (
+            "repo.investigate",
+            "workspace",
+            "unasked doctor by default; mode=full runs investigate",
+        ),
+        ("repo.passport", "root", "RepoPassport verify (query, not a gate)"),
     )
 ]
 assert tuple(t["name"] for t in TOOLS) == TOOL_ORDER
@@ -146,12 +152,74 @@ def _call_tool(name: str, arguments: dict) -> dict:
         if not workspace:
             return _tool_result("tripwire: missing argument workspace. Failing closed.", True)
         root = gate.unasked_root()
+        full = str(arguments.get("mode") or "").lower() == "full"
+        if full:
+            missing = [
+                k
+                for k in ("run", "budget", "provider_config")
+                if not arguments.get(k)
+            ]
+            if missing:
+                return _tool_result(
+                    "tripwire: investigate missing "
+                    + ",".join(missing)
+                    + ". Failing closed.",
+                    True,
+                )
+            argv = [
+                "-m",
+                "unasked",
+                "investigate",
+                "--workspace",
+                str(workspace),
+                "--run",
+                str(arguments["run"]),
+                "--budget",
+                str(arguments["budget"]),
+                "--provider-config",
+                str(arguments["provider_config"]),
+            ]
+        else:
+            argv = ["-m", "unasked", "doctor", "--workspace", str(workspace)]
         code, text = _run_judge(
             os.path.join(root, "src"),
-            ["-m", "unasked", "doctor", "--workspace", str(workspace)],
+            argv,
             pkg_dir=os.path.join(root, "src", "unasked"),
         )
         return _tool_result(text, code != 0)
+    if name == "repo.passport":
+        root_arg = arguments.get("root")
+        if not root_arg:
+            return _tool_result("tripwire: missing argument root. Failing closed.", True)
+        src = gate.repopass_root()
+        cmd_dir = os.path.join(src, "cmd", "repopass")
+        if not os.path.isdir(cmd_dir):
+            return _tool_result(
+                "tripwire: vendored RepoPassport not found (run scripts/install.ps1). "
+                "Failing closed: the query plane cannot certify this call.",
+                True,
+            )
+        env = dict(os.environ)
+        try:
+            result = subprocess.run(
+                ["go", "run", "./cmd/repopass", "--offline", "verify"],
+                capture_output=True,
+                text=True,
+                timeout=TIMEOUT,
+                env=env,
+                cwd=src,
+            )
+        except FileNotFoundError:
+            return _tool_result(
+                "tripwire: go not on PATH for RepoPassport. Failing closed.",
+                True,
+            )
+        except subprocess.TimeoutExpired:
+            return _tool_result("tripwire: RepoPassport timed out. Failing closed.", True)
+        except Exception as err:
+            return _tool_result(f"tripwire: RepoPassport could not run ({err!r}). Failing closed.", True)
+        text = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
+        return _tool_result(text or f"repopass exit {result.returncode}", result.returncode != 0)
     return _tool_result(f"tripwire: unknown tool {name!r}. Failing closed.", True)
 
 

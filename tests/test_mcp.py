@@ -73,6 +73,7 @@ class Protocol(unittest.TestCase):
                 "ledger.score",
                 "receipt.verify",
                 "repo.investigate",
+                "repo.passport",
             ],
         )
 
@@ -198,6 +199,96 @@ class VendorPins(unittest.TestCase):
         text = reply["result"]["content"][0]["text"]
         self.assertFalse(reply["result"]["isError"], text)
         self.assertIn("doctor", text)
+
+    def test_m21_investigate_missing_args(self) -> None:
+        reply = mcp.handle(
+            {
+                "jsonrpc": "2.0",
+                "id": 9,
+                "method": "tools/call",
+                "params": {
+                    "name": "repo.investigate",
+                    "arguments": {"workspace": ".", "mode": "full"},
+                },
+            }
+        )
+        text = reply["result"]["content"][0]["text"]
+        self.assertTrue(reply["result"]["isError"])
+        self.assertTrue("missing" in text.lower() or "investigate" in text.lower())
+
+    def test_m21_passport_missing_vendor(self) -> None:
+        old = os.environ.get("TRIPWIRE_REPOPASS_SRC")
+        os.environ["TRIPWIRE_REPOPASS_SRC"] = os.path.join(ROOT, "nope-passport")
+        try:
+            reply = mcp.handle(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 10,
+                    "method": "tools/call",
+                    "params": {"name": "repo.passport", "arguments": {"root": "."}},
+                }
+            )
+        finally:
+            if old is None:
+                os.environ.pop("TRIPWIRE_REPOPASS_SRC", None)
+            else:
+                os.environ["TRIPWIRE_REPOPASS_SRC"] = old
+        self.assertTrue(reply["result"]["isError"])
+        self.assertIn("Failing closed", reply["result"]["content"][0]["text"])
+
+    def test_m21_live_nullbench_freeze(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            init = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "nullbench",
+                    "init",
+                    "try1",
+                    "-d",
+                    "demo649",
+                    "--path",
+                    tmp,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            self.assertEqual(init.returncode, 0, init.stderr)
+            study = os.path.join(tmp, "try1")
+            add = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "nullbench",
+                    "strategy",
+                    "add",
+                    "random",
+                    "--study",
+                    study,
+                    "--tickets",
+                    "5",
+                    "--seed",
+                    "1",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            self.assertEqual(add.returncode, 0, add.stderr)
+            reply = mcp.handle(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 11,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "ledger.preregister",
+                        "arguments": {"study": study},
+                    },
+                }
+            )
+        text = reply["result"]["content"][0]["text"]
+        self.assertFalse(reply["result"]["isError"], text)
 
 
 class NotEnforcement(unittest.TestCase):

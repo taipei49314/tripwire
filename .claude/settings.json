@@ -9,7 +9,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Write|Edit|Bash",
         "hooks": [
           { "type": "command", "command": "python hooks/tripwire_pretooluse.py" }
         ]

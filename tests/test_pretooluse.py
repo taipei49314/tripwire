@@ -55,7 +55,10 @@ class SettingsWired(unittest.TestCase):
             data = json.loads(fh.read())
         pre = data["hooks"]["PreToolUse"]
         self.assertTrue(pre)
-        self.assertEqual(pre[0]["matcher"], "Bash")
+        matcher = pre[0]["matcher"]
+        self.assertIn("Bash", matcher)
+        self.assertIn("Write", matcher)
+        self.assertIn("Edit", matcher)
         command = pre[0]["hooks"][0]["command"]
         self.assertIn("tripwire_pretooluse.py", command)
 
@@ -82,6 +85,21 @@ class DetectVerbs(unittest.TestCase):
             self.gate.git_commit_push_verbs(r"git.exe -C C:\tmp commit -m x"),
             frozenset({"commit"}),
         )
+
+    def test_c2_parse_all_and_refspec(self) -> None:
+        parsed = self.gate.parse_git_push("git push --all origin")
+        self.assertTrue(parsed["all"])
+        parsed = self.gate.parse_git_push("git push origin HEAD:other")
+        self.assertEqual(parsed["refspecs"], ["HEAD"])
+        parsed = self.gate.parse_git_push("git push origin side:other")
+        self.assertEqual(parsed["refspecs"], ["side"])
+
+    def test_path_is_meta_keeps_leading_dot(self) -> None:
+        self.assertTrue(self.gate.path_is_meta(".phaseledger/notes.txt"))
+        self.assertTrue(self.gate.path_is_meta("./.walkaround/receipt.json"))
+        self.assertTrue(self.gate.path_is_meta(".charterlock"))
+        self.assertFalse(self.gate.path_is_meta("src/app.py"))
+        self.assertFalse(self.gate.path_is_meta("phaseledger/notes.txt"))
 
 
 class PreToolUseGate(unittest.TestCase):
@@ -181,6 +199,136 @@ class PreToolUseGate(unittest.TestCase):
             code, out, _ = run_hook(bash_payload(plain, "git commit -m x"))
         self.assertEqual(code, 0)
         self.assertEqual(self.parsed(out), {})
+
+    def test_c2_1_push_all_washes_side_branch(self) -> None:
+        git(self.repo, "checkout", "-q", "-b", "side")
+        with open(os.path.join(self.repo, "tests", "test_billing.py"), "w", encoding="utf-8") as f:
+            f.write(WEAK_TEST)
+        git(self.repo, "add", ".")
+        git(self.repo, "commit", "-q", "-m", "wash on side")
+        git(self.repo, "checkout", "-q", "-")
+        code, out, _ = run_hook(bash_payload(self.repo, "git push --all origin"))
+        self.assertEqual(code, 0)
+        spec = self.specific(out)
+        self.assertEqual(spec.get("permissionDecision"), "deny")
+        self.assertIn("greenwash", spec.get("permissionDecisionReason", ""))
+
+    def test_c2_2_push_refspec_scans_head(self) -> None:
+        with open(os.path.join(self.repo, "tests", "test_billing.py"), "w", encoding="utf-8") as f:
+            f.write(WEAK_TEST)
+        git(self.repo, "add", ".")
+        git(self.repo, "commit", "-q", "-m", "wash on HEAD")
+        code, out, _ = run_hook(bash_payload(self.repo, "git push origin HEAD:other"))
+        self.assertEqual(code, 0)
+        spec = self.specific(out)
+        self.assertEqual(spec.get("permissionDecision"), "deny")
+        self.assertIn("greenwash", spec.get("permissionDecisionReason", ""))
+
+    def test_c2_2_push_refspec_scans_side_src(self) -> None:
+        git(self.repo, "checkout", "-q", "-b", "side")
+        with open(os.path.join(self.repo, "tests", "test_billing.py"), "w", encoding="utf-8") as f:
+            f.write(WEAK_TEST)
+        git(self.repo, "add", ".")
+        git(self.repo, "commit", "-q", "-m", "wash on side")
+        git(self.repo, "checkout", "-q", "-")
+        code, out, _ = run_hook(bash_payload(self.repo, "git push origin side:other"))
+        self.assertEqual(code, 0)
+        spec = self.specific(out)
+        self.assertEqual(spec.get("permissionDecision"), "deny")
+        self.assertIn("greenwash", spec.get("permissionDecisionReason", ""))
+
+    def test_h1_2_no_verify_still_scans(self) -> None:
+        with open(os.path.join(self.repo, "tests", "test_billing.py"), "w", encoding="utf-8") as f:
+            f.write(WEAK_TEST)
+        code, out, _ = run_hook(bash_payload(self.repo, "git commit --no-verify -am wash"))
+        self.assertEqual(code, 0)
+        spec = self.specific(out)
+        self.assertEqual(spec.get("permissionDecision"), "deny")
+        self.assertIn("greenwash", spec.get("permissionDecisionReason", ""))
+
+    def test_w2_write_without_ledger_denies(self) -> None:
+        code, out, _ = run_hook(
+            {
+                "cwd": self.repo,
+                "tool_name": "Write",
+                "tool_input": {"file_path": "src/app.py"},
+            }
+        )
+        self.assertEqual(code, 0)
+        spec = self.specific(out)
+        self.assertEqual(spec.get("permissionDecision"), "deny")
+        self.assertIn("NO_LEDGER", spec.get("permissionDecisionReason", ""))
+
+    def test_w5_meta_write_allowed(self) -> None:
+        code, out, _ = run_hook(
+            {
+                "cwd": self.repo,
+                "tool_name": "Write",
+                "tool_input": {"file_path": ".phaseledger/notes.txt"},
+            }
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(self.parsed(out), {})
+
+
+class WritePlanGate(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.repo = self.tmp.name
+        git(self.repo, "init", "-q")
+        git(self.repo, "config", "user.name", "tripwire-test")
+        git(self.repo, "config", "user.email", "tripwire-test@example.invalid")
+        with open(os.path.join(self.repo, "ok.py"), "w", encoding="utf-8") as f:
+            f.write("x = 1\n")
+        git(self.repo, "add", ".")
+        git(self.repo, "commit", "-q", "-m", "base")
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_w3_pending_plan_denies_src(self) -> None:
+        sys.path.insert(0, os.path.join(ROOT, "vendor", "phaseledger"))
+        from phaseledger.ledger import PhaseLedger
+
+        PhaseLedger.open(os.path.join(self.repo, ".phaseledger"))
+        code, out, _ = run_hook(
+            {
+                "cwd": self.repo,
+                "tool_name": "Write",
+                "tool_input": {"file_path": "src/app.py"},
+            }
+        )
+        self.assertEqual(code, 0)
+        spec = json.loads(out.splitlines()[-1]).get("hookSpecificOutput") or {}
+        self.assertEqual(spec.get("permissionDecision"), "deny")
+        self.assertIn("PLAN_NOT_ADVANCED", spec.get("permissionDecisionReason", ""))
+
+    def test_w4_advanced_plan_allows_src(self) -> None:
+        sys.path.insert(0, os.path.join(ROOT, "vendor", "phaseledger"))
+        from phaseledger.ledger import PhaseLedger
+
+        ledger = PhaseLedger.open(os.path.join(self.repo, ".phaseledger"))
+        ledger.record_claim("plan", "plan-ok")
+        ledger.record_measure(
+            "plan",
+            {
+                "phase": "plan",
+                "claim": "plan-ok",
+                "artifact_present": True,
+                "artifact_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "checks": [{"name": "ok", "passed": True}],
+            },
+        )
+        ledger.advance("plan")
+        code, out, _ = run_hook(
+            {
+                "cwd": self.repo,
+                "tool_name": "Write",
+                "tool_input": {"file_path": "src/app.py"},
+            }
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out.splitlines()[-1]) if out else {}, {})
 
 
 if __name__ == "__main__":

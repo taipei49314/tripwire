@@ -33,11 +33,13 @@ done-claim. After greenwash allows, tripwire requires a walkaround
 through. Vendored [walkaround](https://github.com/taipei49314/walkaround)
 @ `v0.4.1`.
 
-**M1-C — submit gate (landed).** PreToolUse matcher `Bash` runs
-`hooks/tripwire_pretooluse.py` before `git commit` / `git push`. Commit
-scans HEAD..worktree. Push scans unpushed commits (`oldest^..HEAD` or
-`oldest..HEAD`). A wash already in history that Stop would miss is
-denied at push.
+**M1-C — submit gate (landed).** PreToolUse matcher `Write|Edit|Bash`
+runs `hooks/tripwire_pretooluse.py`. Commit scans HEAD..worktree. Push
+scans unpushed commits, including `--all` / `--mirror` / `src:dst` /
+`--tags` (M1-C2). Write/Edit of production paths need `plan: ADVANCED`
+unless the path is `.phaseledger` / `.walkaround` / `.charterlock`
+(M1-W). `git commit --no-verify` still hits this harness gate (H1);
+a human terminal `--no-verify` does not.
 
 **M1-P — phaseledger checkpoint (landed).** After greenwash and
 walkaround allow, Stop requires `.phaseledger/ledger.json` that
@@ -46,13 +48,25 @@ walkaround allow, Stop requires `.phaseledger/ledger.json` that
 verify. Vendored [phaseledger](https://github.com/taipei49314/phaseledger)
 @ `v0.6.0`.
 
-**M2 — MCP query plane (landed).** `python mcp/tripwire_mcp.py`
-exposes five frozen tools as JSON-RPC over stdio. This is convenience,
-never a hook. `receipt.verify` uses vendored walkaround. Missing
-judges fail closed. RepoPassport is not invoked.
+**M1-K — charterlock (landed).** After phaseledger, Stop requires a
+`.charterlock/` tree and vendored [charterlock](https://github.com/taipei49314/charterlock)
+@ `v0.1.0` `measure` exit 0 (`CHARTER_SPLIT`). Missing charter is
+`NO_CHARTER`. Collapsed / incomplete verdicts pass through.
 
-**M3 — skills (this slice).** `skills/preregister`, `skills/adversarial-verify`,
+**M2 — MCP query plane (landed).** `python mcp/tripwire_mcp.py`
+exposes six tools as JSON-RPC over stdio (M2.1 adds `repo.passport`).
+Convenience, never a hook. `repo.investigate` defaults to unasked
+`doctor`; `mode=full` runs `investigate`. Live nullbench freeze
+requires typer/numpy (`pip install -e vendor/nullbench`). Missing
+judges fail closed.
+
+**M3 — skills (landed).** `skills/preregister`, `skills/adversarial-verify`,
 `skills/verdict-format`. Method only; hooks do not read them.
+
+**H1 — `--no-verify` honesty.** `python hooks/tripwire_honesty.py`
+states the residual: Claude PreToolUse still sees `git commit --no-verify`;
+a human CLI `--no-verify` skips git hooks and tripwire (tripwire is not
+a git hook). Merge enforcement is a required status check. Not solved.
 
 Honest scope note (greenwash's own warning): a local hook is an author-side
 convenience. Merge-level enforcement is a **required status check**; tripwire
@@ -77,8 +91,9 @@ and prints the Stop-hook snippet to paste into a target repo's
 | greenwash | hooks | **M0** + **M1-C** |
 | walkaround | hooks | **M1-R** |
 | phaseledger | hooks | **M1-P** |
-| trust-meter · nullbench · unasked | MCP | **M2** |
-| RepoPassport | MCP | M2 residual |
+| trust-meter · nullbench · unasked | MCP | **M2** + **M2.1** |
+| RepoPassport | MCP | **M2.1** |
+| charterlock | hooks | **M1-K** |
 | T-series pre-registration | skills | **M3** |
 
 Roadmap and frozen acceptance criteria: [SPEC.md](SPEC.md).

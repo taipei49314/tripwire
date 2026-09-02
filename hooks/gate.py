@@ -61,6 +61,20 @@ def unasked_root() -> str:
     return os.path.join(tripwire_root(), "vendor", "unasked")
 
 
+def charterlock_root() -> str:
+    override = os.environ.get("TRIPWIRE_CHARTERLOCK_SRC")
+    if override:
+        return override
+    return os.path.join(tripwire_root(), "vendor", "charterlock")
+
+
+def repopass_root() -> str:
+    override = os.environ.get("TRIPWIRE_REPOPASS_SRC")
+    if override:
+        return override
+    return os.path.join(tripwire_root(), "vendor", "RepoPassport")
+
+
 def is_git_repo(cwd: str) -> bool:
     try:
         probe = subprocess.run(
@@ -140,27 +154,146 @@ def _git_out(cwd: str, args: list[str]) -> str | None:
     return (proc.stdout or "").strip()
 
 
-def unpushed_range(cwd: str) -> str | None:
-    """oldest^..HEAD for commits on HEAD not on any remote-tracking ref.
-
-    None → nothing to scan (in sync, or root commit with no parent).
-    """
-    listed = _git_out(cwd, ["rev-list", "HEAD", "--not", "--remotes"])
-    if listed is None:
-        return None
-    lines = [ln.strip() for ln in listed.splitlines() if ln.strip()]
+def _range_from_rev_list(cwd: str, lines: list[str], tip: str = "HEAD") -> str | None:
     if not lines:
         return None
     oldest = lines[-1]
     parent = _git_out(cwd, ["rev-parse", "--verify", oldest + "^"])
     if parent:
-        return f"{oldest}^..HEAD"
-    # Root commit is unpushed. Include later commits only (oldest..HEAD
-    # excludes the root). A washed root with no later commit is the
-    # documented residual — commit-time worktree gate must have caught it.
+        return f"{oldest}^..{tip}"
     if len(lines) > 1:
-        return f"{oldest}..HEAD"
+        return f"{oldest}..{tip}"
     return None
+
+
+def unpushed_range(cwd: str, tip: str = "HEAD") -> str | None:
+    """oldest^..tip for commits on tip not on any remote-tracking ref."""
+    listed = _git_out(cwd, ["rev-list", tip, "--not", "--remotes"])
+    if listed is None:
+        return None
+    lines = [ln.strip() for ln in listed.splitlines() if ln.strip()]
+    return _range_from_rev_list(cwd, lines, tip)
+
+
+def parse_git_push(command: str) -> dict:
+    """Flags and refspecs after `git push`. SPEC M1-C2."""
+    out = {"all": False, "mirror": False, "tags": False, "refspecs": []}
+    if not command:
+        return out
+    tokens: list[str] = []
+    for raw in _SEGMENT.split(command):
+        s = _ENV_PREFIX.sub("", raw.strip())
+        parts = s.split()
+        git_i = None
+        for i, tok in enumerate(parts):
+            base = tok.replace("\\", "/").rsplit("/", 1)[-1].lower()
+            if base in {"git", "git.exe", "git.cmd"}:
+                git_i = i
+                break
+        if git_i is None:
+            continue
+        j = git_i + 1
+        while j < len(parts):
+            t = parts[j]
+            if t in _GIT_OPTS_WITH_ARG:
+                j += 2
+                continue
+            if t.startswith("-"):
+                j += 1
+                continue
+            break
+        if j < len(parts) and parts[j].lower() == "push":
+            tokens = parts[j + 1 :]
+            break
+    skip_next = False
+    seen_remote = False
+    for t in tokens:
+        if skip_next:
+            skip_next = False
+            continue
+        if t in {"--all", "-a"}:
+            out["all"] = True
+            continue
+        if t == "--mirror":
+            out["mirror"] = True
+            continue
+        if t == "--tags":
+            out["tags"] = True
+            continue
+        if t.startswith("-"):
+            if t in {"-u", "--set-upstream", "-o", "--push-option", "--repo"}:
+                skip_next = True
+            continue
+        if ":" in t or t.startswith("refs/"):
+            out["refspecs"].append(t.split(":", 1)[0] or "HEAD")
+            continue
+        if not seen_remote:
+            seen_remote = True
+            continue
+        out["refspecs"].append(t)
+    return out
+
+
+def push_ranges(cwd: str, command: str) -> list[str]:
+    parsed = parse_git_push(command)
+    tips: list[str] = []
+    ranges: list[str] = []
+    seen: set[str] = set()
+
+    def _add(rng: str | None) -> None:
+        if rng and rng not in seen:
+            seen.add(rng)
+            ranges.append(rng)
+
+    if parsed["all"] or parsed["mirror"]:
+        refs = _git_out(cwd, ["for-each-ref", "--format=%(refname:short)", "refs/heads"])
+        if refs:
+            tips.extend(refs.splitlines())
+    if parsed["tags"]:
+        tag_lines = [
+            ln.strip()
+            for ln in (_git_out(cwd, ["rev-list", "--tags", "--not", "--remotes"]) or "").splitlines()
+            if ln.strip()
+        ]
+        newest = tag_lines[0] if tag_lines else "HEAD"
+        _add(_range_from_rev_list(cwd, tag_lines, newest))
+    if parsed["refspecs"]:
+        tips.extend(parsed["refspecs"])
+    if not tips and not ranges:
+        _add(unpushed_range(cwd))
+        return ranges
+    for tip in tips:
+        _add(unpushed_range(cwd, tip.strip() or "HEAD"))
+    return ranges
+
+
+def plan_advanced(cwd: str) -> str:
+    """missing | pending | advanced — uses phaseledger status text only."""
+    ledger = os.path.join(cwd, ".phaseledger", "ledger.json")
+    if not os.path.isfile(ledger):
+        return "missing"
+    status, text, code = run_phaseledger(cwd, ["status", "--ledger", os.path.join(cwd, ".phaseledger")])
+    if status == "error" or code != 0:
+        return "missing"
+    if "- plan: ADVANCED |" in (text or ""):
+        return "advanced"
+    return "pending"
+
+
+def path_is_meta(path: str) -> bool:
+    """True for gate dirs. Do not str.lstrip('./') — that strips the leading dot."""
+    p = path.replace("\\", "/")
+    while p.startswith("./"):
+        p = p[2:]
+    p = p.lstrip("/")
+    meta = (".phaseledger", ".walkaround", ".charterlock")
+    wrapped = "/" + p.strip("/") + "/"
+    for name in meta:
+        if p == name or p.startswith(name + "/"):
+            return True
+        if f"/{name}/" in wrapped:
+            return True
+    return False
 
 
 def run_greenwash(cwd: str, rev_range: str | None = None) -> tuple[str, str]:

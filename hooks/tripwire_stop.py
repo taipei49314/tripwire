@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""tripwire stop gate (M0 + M1-R + M1-P).
+"""tripwire stop gate (M0 + M1-R + M1-P + M1-K).
 
 Claude Code Stop hook: before the agent finishes a turn,
   1. run greenwash on HEAD..worktree (M0)
   2. require a walkaround ADMITTED receipt (M1-R)
   3. require a phaseledger checkpoint (M1-P)
+  4. require charterlock measure CHARTER_SPLIT (M1-K)
 
 Speaks the Stop-hook JSON protocol: a decision object on stdout,
 exit 0 either way.
@@ -61,6 +62,9 @@ def main() -> int:
     if blocked is not None:
         return blocked
     blocked = _phaseledger_gate(cwd)
+    if blocked is not None:
+        return blocked
+    blocked = _charterlock_gate(cwd)
     if blocked is not None:
         return blocked
     return _allow()
@@ -132,6 +136,70 @@ def _phaseledger_gate(cwd: str) -> int | None:
             + "\ntripwire: claim → measure → advance; an empty ledger is not a checkpoint."
         )
     return None
+
+
+def _charterlock_gate(cwd: str) -> int | None:
+    """M1-K. None = allow. int = already blocked."""
+    root_dir = os.path.join(cwd, ".charterlock")
+    charter = os.path.join(root_dir, "charter.json")
+    if not os.path.isfile(charter):
+        return _block(
+            "tripwire: NO_CHARTER — no .charterlock/charter.json. "
+            "A journey is not an exam if the examinee wrote it; freeze a charter first."
+        )
+    src = gate.charterlock_root()
+    pkg = os.path.join(src, "charterlock")
+    if not os.path.isdir(pkg):
+        return _block(
+            "tripwire: vendored charterlock not found (run scripts/install.ps1). "
+            "Failing closed: the stop gate cannot certify this turn."
+        )
+    first_path = os.path.join(root_dir, "first_exec_at")
+    first = ""
+    if os.path.isfile(first_path):
+        with open(first_path, encoding="utf-8") as fh:
+            first = fh.read().strip()
+    if not first:
+        return _block("tripwire: NO_CHARTER — missing first_exec_at. Failing closed.")
+    env = dict(os.environ)
+    env["PYTHONPATH"] = src + os.pathsep + env.get("PYTHONPATH", "")
+    argv = [
+        sys.executable,
+        "-m",
+        "charterlock",
+        "measure",
+        "--charter",
+        charter,
+        "--keyring",
+        os.path.join(root_dir, "keyring.json"),
+        "--executor-keys",
+        os.path.join(root_dir, "executor.json"),
+        "--first-exec-at",
+        first,
+        "--journey",
+        os.path.join(root_dir, "journey.json"),
+        "--json",
+    ]
+    try:
+        result = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            timeout=gate.TIMEOUT_SECONDS,
+            env=env,
+            cwd=cwd,
+        )
+    except subprocess.TimeoutExpired:
+        return _block("tripwire: charterlock timed out. Failing closed.")
+    except Exception as err:
+        return _block(f"tripwire: charterlock could not run ({err!r}). Failing closed.")
+    text = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
+    if result.returncode == 0:
+        return None
+    return _block(
+        (text[-1500:] if text else f"charterlock exit {result.returncode}")
+        + "\ntripwire: charterlock refused the exam (examinee must not write the charter)."
+    )
 
 
 if __name__ == "__main__":

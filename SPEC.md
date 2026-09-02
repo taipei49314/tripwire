@@ -260,6 +260,78 @@ Explorer 調查。RepoPassport 本輪不呼叫（Go 執行檔，殘差）。
 
 **殘差：** skill 不能阻止不誠實的 agent；那是 hooks 的工作。本輪不做 Claude 以外 host 的自動安裝。
 
+**預註冊：** 本表隨落地 commit 凍結。
+
+### Leftovers — 本輪補齊（不弱化 M0–M3）
+
+下列各表是**新判準**。M2-2 的「恰好五個工具」由 M2.1 **修訂**為六個（加 `repo.passport`）。其餘 M0–M3 列不得改。
+
+#### M1-W — Write/Edit 須 plan ADVANCED
+
+PreToolUse matcher 含 `Write|Edit`（及 `Bash`）。對 `file_path` / `path`：
+
+- 路徑在 `.phaseledger/**`、`.walkaround/**`、`.charterlock/**` → 放行（可建關卡）
+- 否則需要 `.phaseledger/ledger.json` 且 `phaseledger status` 含 `- plan: ADVANCED |`
+- 無 ledger → deny，`NO_LEDGER`
+- plan 未 ADVANCED → deny，`PLAN_NOT_ADVANCED`
+
+| # | 判準 |
+| --- | --- |
+| W1 | settings matcher 含 `Write` 與 `Edit` |
+| W2 | Write `src/x.py`、無 ledger → deny `NO_LEDGER` |
+| W3 | Write `src/x.py`、ledger 在但 plan 未 ADVANCED → deny `PLAN_NOT_ADVANCED` |
+| W4 | plan ADVANCED 後 Write `src/x.py` → `{}` |
+| W5 | Write `.phaseledger/notes.txt` 在 plan 前 → `{}` |
+
+#### M1-C2 — `git push` refspec / `--all`
+
+在 M1-C 之上：`--all` / `--mirror` 掃描**所有 local branch** 相對 `--remotes` 的未推送 commit；`src:dst` 掃描 `src` 的未推送。任一 range greenwash block 則 deny。`--tags` 掃描 `git rev-list --tags --not --remotes`（有則掃）。
+
+| # | 判準 |
+| --- | --- |
+| C2-1 | `git push --all` 在僅 side branch 有洗分、HEAD 乾淨時仍 deny |
+| C2-2 | `git push origin HEAD:other` 掃 HEAD 未推送，不是假裝沒 refspec |
+
+#### M1-K — charterlock 獨立閘
+
+Stop 在 phaseledger 之後：`.charterlock/` 必有 `charter.json`、`keyring.json`、`executor.json`、`journey.json`、`first_exec_at`。呼叫 vendored charterlock @ **v0.1.0** `measure`（不 patch）。exit 0（`CHARTER_SPLIT`）才放行。缺目錄 `NO_CHARTER`。`CHARTER_COLLAPSED` / `INCOMPLETE` 原文透傳。
+
+| # | 判準 |
+| --- | --- |
+| K1 | 無 `.charterlock/charter.json` → block `NO_CHARTER` |
+| K2 | 植 CHARTER_SPLIT fixture → 與健康 walkaround/phaseledger 一併放行 |
+| K3 | 植 CHARTER_COLLAPSED → block，reason 含 `CHARTER_COLLAPSED` |
+| K4 | 缺 vendor → fail-closed |
+
+#### M2.1 — MCP 加深
+
+`tools/list` **六**個名字，前五不變，第六 `repo.passport`。
+
+| Tool | 行為 |
+| --- | --- |
+| `repo.investigate` | 預設仍 `unasked doctor`（M2 live 測試不變）。若 `mode=full` 且有 `run`、`budget`、`provider_config` → `unasked investigate` |
+| `repo.passport` | vendored RepoPassport：`repopass --offline verify` 或 `go run ./cmd/repopass --offline verify`；缺 binary/go → `isError` fail-closed |
+| `ledger.preregister` / `ledger.score` | **live**：本機已 `pip install` vendored nullbench 時，freeze/settle 必須真的跑（不再只測缺 vendor） |
+
+| # | 判準 |
+| --- | --- |
+| M2.1-1 | tools/list 第六名 `repo.passport` |
+| M2.1-2 | `repo.investigate` 無 mode → 仍 doctor |
+| M2.1-3 | `mode=full` 缺 budget/run/provider_config → `isError`，text 含 `investigate` 或 `missing` |
+| M2.1-4 | `repo.passport` 缺 vendor → `isError` `Failing closed` |
+| M2.1-5 | nullbench live：init+strategy+freeze 後 `ledger.preregister` `isError` 假 |
+
+#### H1 — `--no-verify` 誠實標示（不裝成已解）
+
+Claude PreToolUse **仍會**攔 `git commit --no-verify`（那是 harness，不是 git hook）。人類在終端 `git commit --no-verify` **繞過 git hook，也繞過未安裝成 git hook 的 tripwire**。真正的 merge enforcement 是 required status check（§0）。
+
+`python hooks/tripwire_honesty.py` 印出上述，exit 0。不准加「假 git hook」然後宣稱已解 `--no-verify`。
+
+| # | 判準 |
+| --- | --- |
+| H1-1 | honesty 腳本 stdout 含 `--no-verify` 與 `required status check` |
+| H1-2 | `git commit --no-verify` 的 PreToolUse **仍然**跑 greenwash（不因旗標放行） |
+
 **預註冊：** 本表隨本輪 commit 凍結。
 
 ## 4. 明確不做
@@ -277,9 +349,9 @@ Explorer 調查。RepoPassport 本輪不呼叫（Go 執行檔，殘差）。
 | walkaround | hooks | **M1-R** |
 | phaseledger | hooks | **M1-P（本輪）** |
 | trust-meter | MCP | **M2** |
-| nullbench | MCP | **M2**（pin；live settle 殘差） |
-| unasked | MCP | **M2**（doctor） |
-| RepoPassport | MCP | M2 殘差（未呼叫） |
-| charterlock | 信任模型（§0）＋ M1 收據語義 | — |
+| nullbench | MCP | **M2** ＋ **M2.1** live freeze |
+| unasked | MCP | **M2** doctor ＋ **M2.1** investigate |
+| RepoPassport | MCP | **M2.1** |
+| charterlock | hooks | **M1-K**（§0 原則仍適用） |
 | smallestlie | M2 之後評估（對抗性探針工具） | — |
 | T 系列方法論 | skills | **M3** |
