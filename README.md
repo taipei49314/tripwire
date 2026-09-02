@@ -109,6 +109,13 @@ and prints the Stop-hook snippet to paste into a target repo's
 `.claude/settings.json`. This repo dogfoods its own gate via
 [.claude/settings.json](.claude/settings.json).
 
+**Owner-only for now.** `install.ps1` clones walkaround, phaseledger,
+charterlock, trust-meter, unasked, and RepoPassport at their pins, and those
+six repositories are currently private. The installer therefore completes
+only for an account with read access to them; greenwash/checkwash, nullbench,
+and smallestlie are public. This is a visibility question, not a pin question
+(estate T-20 §9); no pin changes until it is decided.
+
 ## Family map
 
 | Judge | Layer | Milestone |
