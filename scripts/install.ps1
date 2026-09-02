@@ -1,4 +1,4 @@
-# tripwire installer (M0 + M1-R + M1-P): vendor pinned judges and self-check.
+# tripwire installer (M0 + M1 + M2): vendor pinned judges and self-check.
 # Judges are pinned by git tag and never patched (SPEC section 2).
 
 $ErrorActionPreference = "Stop"

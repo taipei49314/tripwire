@@ -162,6 +162,44 @@ class ReceiptVerify(unittest.TestCase):
         self.assertTrue(reply["result"]["isError"])
 
 
+class VendorPins(unittest.TestCase):
+    def test_m2_vendor_trees_present(self) -> None:
+        for rel in (
+            os.path.join("vendor", "trust-meter", "src", "trust_meter"),
+            os.path.join("vendor", "unasked", "src", "unasked"),
+            os.path.join("vendor", "nullbench", "src", "nullbench"),
+        ):
+            self.assertTrue(os.path.isdir(os.path.join(ROOT, rel)), rel)
+
+    def test_live_trust_score(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            reply = mcp.handle(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 7,
+                    "method": "tools/call",
+                    "params": {"name": "trust.score", "arguments": {"target": tmp}},
+                }
+            )
+        text = reply["result"]["content"][0]["text"]
+        self.assertFalse(reply["result"]["isError"], text)
+        self.assertIn("overall_score", text)
+
+    def test_live_unasked_doctor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            reply = mcp.handle(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 8,
+                    "method": "tools/call",
+                    "params": {"name": "repo.investigate", "arguments": {"workspace": tmp}},
+                }
+            )
+        text = reply["result"]["content"][0]["text"]
+        self.assertFalse(reply["result"]["isError"], text)
+        self.assertIn("doctor", text)
+
+
 class NotEnforcement(unittest.TestCase):
     def test_m2_7_hooks_do_not_call_mcp(self) -> None:
         with open(SETTINGS, encoding="utf-8") as fh:

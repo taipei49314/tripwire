@@ -45,12 +45,16 @@ def _tool_schema(name: str, prop: str, desc: str) -> dict:
 
 
 TOOLS = [
-    _tool_schema("trust.score", "target", "trust-meter: score a directory (query, not a gate)"),
-    _tool_schema("ledger.preregister", "study", "nullbench freeze --latest (query, not a gate)"),
-    _tool_schema("ledger.score", "study", "nullbench settle (query, not a gate)"),
-    _tool_schema("receipt.verify", "root", "walkaround verify of a stored admission receipt"),
-    _tool_schema("repo.investigate", "workspace", "unasked doctor on a workspace (not a discovery run)"),
+    _tool_schema(name, prop, desc)
+    for name, prop, desc in (
+        ("trust.score", "target", "trust-meter: score a directory (query, not a gate)"),
+        ("ledger.preregister", "study", "nullbench freeze --latest (query, not a gate)"),
+        ("ledger.score", "study", "nullbench settle (query, not a gate)"),
+        ("receipt.verify", "root", "walkaround verify of a stored admission receipt"),
+        ("repo.investigate", "workspace", "unasked doctor on a workspace (not a discovery run)"),
+    )
 ]
+assert tuple(t["name"] for t in TOOLS) == TOOL_ORDER
 
 
 def _rpc_error(id_, code: int, message: str) -> dict:

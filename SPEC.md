@@ -236,9 +236,31 @@ Explorer 調查。RepoPassport 本輪不呼叫（Go 執行檔，殘差）。
 
 **預註冊：** 本表隨本輪 commit 凍結。
 
-### M3 — skills
+### M3 — skills 方法論（本輪）
 
-`/preregister`（T 系列預註冊劇本）、`/adversarial-verify`、判決書格式。判準屆時另立。
+**不是執法。** skills 教誠實的 agent 怎麼做；hooks 不准改去讀 SKILL.md。
+範圍：`skills/<name>/SKILL.md` 三份，YAML `name` 與目錄名相同。
+
+| Skill | 職責 |
+| --- | --- |
+| `preregister` | T 系列：先寫預測／claim，再跑裁判。禁止看完結果再改預測 |
+| `adversarial-verify` | 對 M0/M1 閘做對照實驗（洗分、沒收據、空 ledger、跳關、先 commit 再 push） |
+| `verdict-format` | 跨層判決詞彙：Stop `decision`、walkaround 四值、phaseledger 關卡碼、PreToolUse `permissionDecision`、MCP `isError` |
+
+驗收（全部成立才標 M3 done）。M0 / M1 / M2 **不得弱化**。
+
+| # | 判準 |
+| --- | --- |
+| S1 | 三份 `skills/{preregister,adversarial-verify,verdict-format}/SKILL.md` 存在，frontmatter `name:` 與目錄名相同 |
+| S2 | `preregister` 含 `claim before measure` 與 `no backfill` |
+| S3 | `adversarial-verify` 點名三道 Stop 閘：`greenwash`、`walkaround`、`phaseledger`，以及 M1-C `git push` |
+| S4 | `verdict-format` 含 `ADMITTED`、`BYPASSED`、`NO_LEDGER`、`NO_PHASE_ADVANCED`、`permissionDecision`、`isError` |
+| S5 | skills **沒有**掛進 Stop / PreToolUse |
+| S6 | stdlib unittest，測試不碰網路 |
+
+**殘差：** skill 不能阻止不誠實的 agent；那是 hooks 的工作。本輪不做 Claude 以外 host 的自動安裝。
+
+**預註冊：** 本表隨本輪 commit 凍結。
 
 ## 4. 明確不做
 
@@ -260,4 +282,4 @@ Explorer 調查。RepoPassport 本輪不呼叫（Go 執行檔，殘差）。
 | RepoPassport | MCP | M2 殘差（未呼叫） |
 | charterlock | 信任模型（§0）＋ M1 收據語義 | — |
 | smallestlie | M2 之後評估（對抗性探針工具） | — |
-| T 系列方法論（cell-shift T2–T6 實踐） | skills | M3 |
+| T 系列方法論 | skills | **M3** |

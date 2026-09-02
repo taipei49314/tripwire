@@ -46,10 +46,13 @@ walkaround allow, Stop requires `.phaseledger/ledger.json` that
 verify. Vendored [phaseledger](https://github.com/taipei49314/phaseledger)
 @ `v0.6.0`.
 
-**M2 — MCP query plane (this slice).** `python mcp/tripwire_mcp.py`
+**M2 — MCP query plane (landed).** `python mcp/tripwire_mcp.py`
 exposes five frozen tools as JSON-RPC over stdio. This is convenience,
 never a hook. `receipt.verify` uses vendored walkaround. Missing
 judges fail closed. RepoPassport is not invoked.
+
+**M3 — skills (this slice).** `skills/preregister`, `skills/adversarial-verify`,
+`skills/verdict-format`. Method only; hooks do not read them.
 
 Honest scope note (greenwash's own warning): a local hook is an author-side
 convenience. Merge-level enforcement is a **required status check**; tripwire
@@ -76,7 +79,7 @@ and prints the Stop-hook snippet to paste into a target repo's
 | phaseledger | hooks | **M1-P** |
 | trust-meter · nullbench · unasked | MCP | **M2** |
 | RepoPassport | MCP | M2 residual |
-| T-series pre-registration method | skills | M3 |
+| T-series pre-registration | skills | **M3** |
 
 Roadmap and frozen acceptance criteria: [SPEC.md](SPEC.md).
 
