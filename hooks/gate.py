@@ -33,6 +33,13 @@ def walkaround_root() -> str:
     return os.path.join(tripwire_root(), "vendor", "walkaround")
 
 
+def phaseledger_root() -> str:
+    override = os.environ.get("TRIPWIRE_PHASELEDGER_SRC")
+    if override:
+        return override
+    return os.path.join(tripwire_root(), "vendor", "phaseledger")
+
+
 def is_git_repo(cwd: str) -> bool:
     try:
         probe = subprocess.run(
@@ -194,3 +201,45 @@ def run_greenwash(cwd: str, rev_range: str | None = None) -> tuple[str, str]:
             reason + "\ntripwire: fix the production code; do not weaken the judge.",
         )
     return ("allow", "")
+
+
+def run_phaseledger(cwd: str, argv: list[str]) -> tuple[str, str, int]:
+    """Run vendored phaseledger. Returns (status, text, exit_code).
+
+    status is ok | error. Caller interprets exit_code / text.
+    """
+    root = phaseledger_root()
+    pkg = os.path.join(root, "phaseledger")
+    if not os.path.isdir(pkg):
+        return (
+            "error",
+            "tripwire: vendored phaseledger not found (run scripts/install.ps1). "
+            "Failing closed: the stop gate cannot certify this turn.",
+            2,
+        )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = root + os.pathsep + env.get("PYTHONPATH", "")
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "phaseledger", *argv],
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT_SECONDS,
+            env=env,
+            cwd=cwd,
+        )
+    except subprocess.TimeoutExpired:
+        return (
+            "error",
+            f"tripwire: phaseledger timed out after {TIMEOUT_SECONDS}s. "
+            "Failing closed: the stop gate cannot certify this turn.",
+            2,
+        )
+    except Exception as err:
+        return (
+            "error",
+            f"tripwire: phaseledger could not run ({err!r}). Failing closed.",
+            2,
+        )
+    text = ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
+    return ("ok", text, result.returncode)

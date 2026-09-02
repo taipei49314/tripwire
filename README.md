@@ -33,17 +33,24 @@ done-claim. After greenwash allows, tripwire requires a walkaround
 through. Vendored [walkaround](https://github.com/taipei49314/walkaround)
 @ `v0.4.1`.
 
-**M1-C — submit gate (this slice).** PreToolUse matcher `Bash` runs
+**M1-C — submit gate (landed).** PreToolUse matcher `Bash` runs
 `hooks/tripwire_pretooluse.py` before `git commit` / `git push`. Commit
 scans HEAD..worktree. Push scans unpushed commits (`oldest^..HEAD` or
 `oldest..HEAD`). A wash already in history that Stop would miss is
-denied at push. phaseledger is not this slice; M1 is not done.
+denied at push.
+
+**M1-P — phaseledger checkpoint (this slice).** After greenwash and
+walkaround allow, Stop requires `.phaseledger/ledger.json` that
+`phaseledger verify` accepts **and** `status` shows at least one
+`ADVANCED` phase. Empty init is not a checkpoint. Skip-ahead fails
+verify. Vendored [phaseledger](https://github.com/taipei49314/phaseledger)
+@ `v0.6.0`. M1 (hooks) is this plus R and C.
 
 Honest scope note (greenwash's own warning): a local hook is an author-side
 convenience. Merge-level enforcement is a **required status check**; tripwire
 does not pretend otherwise.
 
-## Install (M0 + M1-R + M1-C)
+## Install (M0 + M1-R + M1-C + M1-P)
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1
@@ -61,7 +68,7 @@ and prints the Stop-hook snippet to paste into a target repo's
 | --- | --- | --- |
 | greenwash | hooks | **M0** + **M1-C** |
 | walkaround | hooks | **M1-R** |
-| phaseledger | hooks | M1 (not frozen) |
+| phaseledger | hooks | **M1-P** |
 | trust-meter · nullbench · unasked · RepoPassport | MCP | M2 |
 | T-series pre-registration method | skills | M3 |
 

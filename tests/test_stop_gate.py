@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,9 @@ HOOK = os.path.join(ROOT, "hooks", "tripwire_stop.py")
 VENDOR_SRC = os.path.join(ROOT, "vendor", "greenwash", "src")
 WALKAROUND_ROOT = os.environ.get("TRIPWIRE_WALKAROUND_SRC") or os.path.join(
     ROOT, "vendor", "walkaround"
+)
+PHASELEDGER_ROOT = os.environ.get("TRIPWIRE_PHASELEDGER_SRC") or os.path.join(
+    ROOT, "vendor", "phaseledger"
 )
 
 STRONG_TEST = "def test_invoice_total():\n    total = 105\n    assert total == 105\n"
@@ -71,6 +75,27 @@ def plant_admitted(repo: str) -> None:
     session.close("done")
 
 
+def plant_plan_advanced(repo: str) -> None:
+    if PHASELEDGER_ROOT not in sys.path:
+        sys.path.insert(0, PHASELEDGER_ROOT)
+    from phaseledger.ledger import PhaseLedger
+
+    ledger = PhaseLedger.open(os.path.join(repo, ".phaseledger"))
+    claim = "plan-ok"
+    ledger.record_claim("plan", claim)
+    ledger.record_measure(
+        "plan",
+        {
+            "phase": "plan",
+            "claim": claim,
+            "artifact_present": True,
+            "artifact_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "checks": [{"name": "ok", "passed": True}],
+        },
+    )
+    ledger.advance("plan")
+
+
 def plant_incomplete(repo: str) -> None:
     if WALKAROUND_ROOT not in sys.path:
         sys.path.insert(0, WALKAROUND_ROOT)
@@ -99,6 +124,10 @@ class StopGateTest(unittest.TestCase):
             os.path.isdir(os.path.join(WALKAROUND_ROOT, "walkaround")),
             "vendored walkaround missing - run scripts/install.ps1 first",
         )
+        self.assertTrue(
+            os.path.isdir(os.path.join(PHASELEDGER_ROOT, "phaseledger")),
+            "vendored phaseledger missing - run scripts/install.ps1 first",
+        )
         self.tmp = tempfile.TemporaryDirectory()
         self.repo = self.tmp.name
         git(self.repo, "init", "-q")
@@ -112,6 +141,7 @@ class StopGateTest(unittest.TestCase):
         git(self.repo, "add", ".")
         git(self.repo, "commit", "-q", "-m", "baseline")
         plant_admitted(self.repo)
+        plant_plan_advanced(self.repo)
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -233,6 +263,52 @@ class StopGateTest(unittest.TestCase):
         code, out, _ = run_hook(
             {"cwd": self.repo},
             env_extra={"TRIPWIRE_WALKAROUND_SRC": os.path.join(self.repo, "nope")},
+        )
+        self.assertEqual(code, 0)
+        verdict = self.decision(out)
+        self.assertEqual(verdict.get("decision"), "block")
+        self.assertIn("Failing closed", verdict.get("reason", ""))
+
+    def test_p2_no_ledger_blocks(self) -> None:
+        shutil.rmtree(os.path.join(self.repo, ".phaseledger"))
+        code, out, _ = run_hook({"cwd": self.repo})
+        self.assertEqual(code, 0)
+        verdict = self.decision(out)
+        self.assertEqual(verdict.get("decision"), "block")
+        self.assertIn("NO_LEDGER", verdict.get("reason", ""))
+
+    def test_p3_skip_ahead_verify_fails(self) -> None:
+        path = os.path.join(self.repo, ".phaseledger", "ledger.json")
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        data["states"]["plan"]["advanced"] = False
+        data["states"]["implement"]["advanced"] = True
+        data["states"]["implement"]["measure_verdict"] = "PASS"
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(data, fh)
+        code, out, _ = run_hook({"cwd": self.repo})
+        self.assertEqual(code, 0)
+        verdict = self.decision(out)
+        self.assertEqual(verdict.get("decision"), "block")
+        self.assertIn("VERIFY", verdict.get("reason", ""))
+
+    def test_p4_empty_init_not_a_checkpoint(self) -> None:
+        shutil.rmtree(os.path.join(self.repo, ".phaseledger"))
+        if PHASELEDGER_ROOT not in sys.path:
+            sys.path.insert(0, PHASELEDGER_ROOT)
+        from phaseledger.ledger import PhaseLedger
+
+        PhaseLedger.open(os.path.join(self.repo, ".phaseledger"))
+        code, out, _ = run_hook({"cwd": self.repo})
+        self.assertEqual(code, 0)
+        verdict = self.decision(out)
+        self.assertEqual(verdict.get("decision"), "block")
+        self.assertIn("NO_PHASE_ADVANCED", verdict.get("reason", ""))
+
+    def test_p6_missing_phaseledger_fails_closed(self) -> None:
+        code, out, _ = run_hook(
+            {"cwd": self.repo},
+            env_extra={"TRIPWIRE_PHASELEDGER_SRC": os.path.join(self.repo, "nope")},
         )
         self.assertEqual(code, 0)
         verdict = self.decision(out)

@@ -1,4 +1,4 @@
-# tripwire installer (M0 + M1-R): vendor pinned judges and self-check.
+# tripwire installer (M0 + M1-R + M1-P): vendor pinned judges and self-check.
 # Judges are pinned by git tag and never patched (SPEC section 2).
 
 $ErrorActionPreference = "Stop"
@@ -7,11 +7,14 @@ $GreenwashRepo = "https://github.com/taipei49314/greenwash.git"
 $GreenwashTag = "v0.1.47"
 $WalkaroundRepo = "taipei49314/walkaround"
 $WalkaroundTag = "v0.4.1"
+$PhaseledgerRepo = "https://github.com/taipei49314/phaseledger.git"
+$PhaseledgerTag = "v0.6.0"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $Vendor = Join-Path $Root "vendor"
 $Target = Join-Path $Vendor "greenwash"
 $WalkaroundTarget = Join-Path $Vendor "walkaround"
+$PhaseledgerTarget = Join-Path $Vendor "phaseledger"
 
 if (Test-Path $Target) {
     Write-Host "vendor/greenwash already present - removing for a clean pin."
@@ -41,6 +44,19 @@ $waVersion = python -m walkaround version
 if ($LASTEXITCODE -ne 0) { throw "walkaround self-check failed" }
 if ($waVersion.Trim() -ne "0.4.1") { throw "walkaround pin mismatch: got $waVersion want 0.4.1" }
 Write-Host "vendored judge: walkaround $waVersion (pin $WalkaroundTag)"
+
+if (Test-Path $PhaseledgerTarget) {
+    Write-Host "vendor/phaseledger already present - removing for a clean pin."
+    Remove-Item -Recurse -Force $PhaseledgerTarget
+}
+cmd /c "git clone --quiet --depth 1 --branch $PhaseledgerTag `"$PhaseledgerRepo`" `"$PhaseledgerTarget`""
+if ($LASTEXITCODE -ne 0) { throw "clone of phaseledger@$PhaseledgerTag failed" }
+
+$env:PYTHONPATH = $PhaseledgerTarget
+$plVersion = python -m phaseledger --version
+if ($LASTEXITCODE -ne 0) { throw "phaseledger self-check failed" }
+if ($plVersion -notmatch "0\.6\.0") { throw "phaseledger pin mismatch: got $plVersion want 0.6.0" }
+Write-Host "vendored judge: $plVersion (pin $PhaseledgerTag)"
 
 $stopHook = Join-Path $Root "hooks\tripwire_stop.py"
 $preHook = Join-Path $Root "hooks\tripwire_pretooluse.py"

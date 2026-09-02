@@ -66,9 +66,8 @@ A9＝非 JSON 的 stdin → fail-closed block。生產路徑（Claude Code 的�
 兩刀。Stop 是「宣稱 done」；PreToolUse 是「把已發生的東西送進歷史」。
 M0 只看工作樹，已 commit 的洗分屬這一層。
 
-**M1-R 已凍結並落地。本輪凍結並實作 M1-C（PreToolUse 攔 `git commit` /
-`git push`，含已 commit 範圍掃描）。** phaseledger 關卡仍未凍結，不得宣稱
-M1 done。
+**M1-R、M1-C 已凍結並落地。本輪凍結並實作 M1-P（phaseledger 關卡接 Stop）。**
+三刀齊了才算 M1 done。
 
 #### M1-R — walkaround 收據接 Stop（本輪）
 
@@ -147,6 +146,52 @@ exit 0（不是 Stop 的 `decision: block`）。非 commit/push 的 Bash 呼叫�
 `--all` / `--tags`、根 commit 且從未設 remote 的 push、引號內偽裝
 `git commit` 字樣。真正的 merge enforcement 仍是 required check（§0）。
 
+**預註冊：** 本表隨落地 commit 凍結。開跑後不得改判準來遷就實作。
+
+#### M1-P — phaseledger 關卡接 Stop（本輪）
+
+範圍：既有 `hooks/tripwire_stop.py` 在 walkaround 放行之後加一道 phase 關卡；
+`scripts/install.ps1` vendor phaseledger @ **v0.6.0**（git tag，不 patch）。
+裁判邊界不變：tripwire 不讀 ledger.json 欄位、不重做 measurer，只呼叫
+`phaseledger verify` 與 `phaseledger status`，原文透傳。
+
+為什麼收據不夠：walkaround `ADMITTED` 只表示進了場。phaseledger 的規則是
+claim → measure → advance；空 ledger 的 `verify` 是 PASS（沒有進階狀態可
+對不上）。Stop 是 done-claim，空關卡或跳關不能放行。
+
+順序固定：greenwash → walkaround → phaseledger。前一閘 block 則不到這一閘。
+
+帳本路徑凍結為工作樹 `.phaseledger/`（與 `.walkaround/` 同形）。
+
+| 步驟 | 行為 |
+| --- | --- |
+| 沒有 `.phaseledger/ledger.json` | block，reason 含 `NO_LEDGER` |
+| `phaseledger verify --ledger .phaseledger` 非 0 | block，reason 含 verify 原文（`VERIFY:`） |
+| verify 為 0，但 `status` 原文沒有 ` ADVANCED \|` | block，reason 含 `NO_PHASE_ADVANCED`（空 init 的洞） |
+| 至少一相 ADVANCED 且 verify PASS | 放行 `{}` |
+
+跳關（後相 advanced、前相不是）由 **phaseledger verify** 自己拒絕
+（`advanced while prior phase … is not advanced`）。tripwire 不另寫順序邏輯。
+
+驗收（全部成立才標 M1-P done）。M0 / M1-R / M1-C **不得弱化**：A3 的放行
+setUp 加種一相 `plan` ADVANCED，這是組合而非改寫 A3。
+
+| # | 判準 |
+| --- | --- |
+| P1 | `scripts/install.ps1` vendor phaseledger @ v0.6.0，自檢 `--version` 含 `0.6.0` |
+| P2 | walkaround `ADMITTED`、greenwash 放行、**沒有** `.phaseledger/ledger.json` → block，reason 含 `NO_LEDGER` |
+| P3 | ledger `verify` FAIL（缺 capture / 壞 JSON / 跳關）→ block，reason 含 `VERIFY` |
+| P4 | `phaseledger init` 空帳（verify PASS、無 ADVANCED）→ block，reason 含 `NO_PHASE_ADVANCED` |
+| P5 | `plan` 已 ADVANCED、verify PASS、walkaround ADMITTED、乾淨樹 → stdout `{}` |
+| P6 | vendored phaseledger 缺失、崩潰或逾時 → fail-closed block |
+| P7 | 弱化斷言加上健康 phase ledger 仍走 greenwash block（P 閘不得蓋掉 M0） |
+| P8 | `stop_hook_active` / 非 git 仍短接（M0 A4 / A6） |
+| P9 | 上述由 `python -m unittest` 鎖住，測試不碰網路 |
+
+**殘差：** 不在 Stop 檢查 Write/Edit 是否發生在 plan 之前（那是 agent 工作方式，
+ledger 只在 claim/advance 時拒絕跳關）。觀察檔由作者寫入；tripwire 不代造
+measure。真正的 merge enforcement 仍是 required check（§0）。
+
 **預註冊：** 本表隨本輪 commit 凍結。開跑後不得改判準來遷就實作。
 
 ### M2 — MCP server
@@ -171,7 +216,7 @@ stdio MCP：`trust.score`（trust-meter）、`ledger.preregister` / `ledger.scor
 | --- | --- | --- |
 | greenwash | hooks | **M0** ＋ **M1-C（範圍掃描）** |
 | walkaround | hooks | **M1-R** |
-| phaseledger | hooks | M1（未凍結） |
+| phaseledger | hooks | **M1-P（本輪）** |
 | trust-meter | MCP | M2 |
 | nullbench | MCP | M2 |
 | unasked / RepoPassport | MCP | M2 |
