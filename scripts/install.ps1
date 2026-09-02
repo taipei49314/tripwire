@@ -42,16 +42,25 @@ if ($LASTEXITCODE -ne 0) { throw "walkaround self-check failed" }
 if ($waVersion.Trim() -ne "0.4.1") { throw "walkaround pin mismatch: got $waVersion want 0.4.1" }
 Write-Host "vendored judge: walkaround $waVersion (pin $WalkaroundTag)"
 
-$hook = Join-Path $Root "hooks\tripwire_stop.py"
+$stopHook = Join-Path $Root "hooks\tripwire_stop.py"
+$preHook = Join-Path $Root "hooks\tripwire_pretooluse.py"
 Write-Host ""
-Write-Host "Stop-hook snippet for a target repo's .claude/settings.json:"
+Write-Host "Hook snippet for a target repo's .claude/settings.json:"
 Write-Host "----------------------------------------------------------------"
 $snippet = @{
     hooks = @{
         Stop = @(
             @{ hooks = @(
-                @{ type = "command"; command = "python `"$hook`"" }
+                @{ type = "command"; command = "python `"$stopHook`"" }
             ) }
+        )
+        PreToolUse = @(
+            @{
+                matcher = "Bash"
+                hooks = @(
+                    @{ type = "command"; command = "python `"$preHook`"" }
+                )
+            }
         )
     }
 } | ConvertTo-Json -Depth 6

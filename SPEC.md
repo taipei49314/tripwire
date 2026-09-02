@@ -66,9 +66,9 @@ A9＝非 JSON 的 stdin → fail-closed block。生產路徑（Claude Code 的�
 兩刀。Stop 是「宣稱 done」；PreToolUse 是「把已發生的東西送進歷史」。
 M0 只看工作樹，已 commit 的洗分屬這一層。
 
-**本輪凍結並實作 M1-R（walkaround 收據閘）。** M1-C（PreToolUse 攔
-`git commit` / `git push`）與 phaseledger 關卡仍列在家族地圖，判準尚未凍結，
-不得在本輪宣稱 M1 done。
+**M1-R 已凍結並落地。本輪凍結並實作 M1-C（PreToolUse 攔 `git commit` /
+`git push`，含已 commit 範圍掃描）。** phaseledger 關卡仍未凍結，不得宣稱
+M1 done。
 
 #### M1-R — walkaround 收據接 Stop（本輪）
 
@@ -97,6 +97,56 @@ setUp 植入一張 `ADMITTED` 收據後仍放行，這是組合而非改寫 A3�
 | R8 | 非 git 目錄仍放行 `{}`（M0 A6） |
 | R9 | 上述由 `python -m unittest` 鎖住，測試不碰網路 |
 
+**預註冊：** 本表隨落地 commit 凍結。開跑後不得改判準來遷就實作。
+
+#### M1-C — PreToolUse 提交閘（本輪）
+
+範圍：`hooks/tripwire_pretooluse.py` ＋ dogfood `.claude/settings.json` 掛
+`PreToolUse` / matcher `Bash`。裁判仍是 vendored greenwash @ **v0.1.47**，
+不 patch。tripwire 只決定「這次呼叫要不要跑、跑哪一段範圍」，判決原文透傳。
+
+為什麼 Stop 不夠：M0 看 HEAD..工作樹。agent 先把洗分 **commit 進歷史**，
+工作樹變乾淨，Stop 放行；再 `git push`。M1-C 在工具執行前攔 `git commit`
+與 `git push`。
+
+觸發（命令字串、大小寫不敏感）：把 `&&` / `||` / `;` / 換行 / 單根 `|` 切開
+之後，若某段的 git 子命令是 `commit` 或 `push`（可帶 `git -C`、`-c`、
+`--git-dir`、`--work-tree`、前綴環境變數、`git.exe`）。`git commit-tree`、
+`git commit-graph`、`git push-to-checkout` 不觸發。字串裡的註解與引號內
+文字不做完整 shell 解析——殘差寫在下面。
+
+範圍：
+
+| 子命令 | greenwash 範圍 |
+| --- | --- |
+| `commit` | 預設 HEAD..工作樹（PreToolUse 在 commit 之前，洗分還在樹上） |
+| `push` | 尚未在任何 remote-tracking ref 上的 local commit（`git rev-list HEAD --not --remotes`）。最舊一筆有 parent → `oldest^..HEAD`；最舊是根且後面還有 commit → `oldest..HEAD`（不含根）。只有根 commit 未推送：放行，依賴 commit 當下的工作樹閘 |
+| 兩者都有（`git commit && git push`） | 兩段都跑，任一 block 則 deny |
+
+PreToolUse 協議：stdout JSON `hookSpecificOutput.permissionDecision = deny`，
+exit 0（不是 Stop 的 `decision: block`）。非 commit/push 的 Bash 呼叫不
+作決定（stdout `{}`）。
+
+驗收（全部成立才標 M1-C done）。M0 / M1-R **不得弱化**。
+
+| # | 判準 |
+| --- | --- |
+| C1 | dogfood settings 掛 PreToolUse matcher `Bash` → `hooks/tripwire_pretooluse.py` |
+| C2 | Bash 命令不是 git commit/push → stdout `{}`，exit 0 |
+| C3 | `git commit`（或 `git add && git commit`）且工作樹弱化斷言、無產品變更 → deny，reason 含規則名 |
+| C4 | `git commit` 乾淨樹或誠實變更 → stdout `{}` |
+| C5 | 洗分**已經 commit**、工作樹乾淨、再 `git push` → deny，reason 含規則名（這是 M0 的洞） |
+| C6 | `git push` 且未推送範圍乾淨 → stdout `{}` |
+| C7 | `git commit-tree` / `git commit-graph` 不觸發閘 |
+| C8 | 惡形 payload → deny，fail-closed |
+| C9 | vendored greenwash 缺失 → deny，fail-closed |
+| C10 | 非 git 目錄 → stdout `{}` |
+| C11 | 上述由 `python -m unittest` 鎖住，測試不碰網路 |
+
+**殘差（接受，不在本輪補）：** 任意 refspec（`git push other HEAD:foo`）、
+`--all` / `--tags`、根 commit 且從未設 remote 的 push、引號內偽裝
+`git commit` 字樣。真正的 merge enforcement 仍是 required check（§0）。
+
 **預註冊：** 本表隨本輪 commit 凍結。開跑後不得改判準來遷就實作。
 
 ### M2 — MCP server
@@ -119,8 +169,8 @@ stdio MCP：`trust.score`（trust-meter）、`ledger.preregister` / `ledger.scor
 
 | 裁判 repo | 進入層 | 里程碑 |
 | --- | --- | --- |
-| greenwash | hooks | **M0** |
-| walkaround | hooks | **M1-R（本輪）** |
+| greenwash | hooks | **M0** ＋ **M1-C（範圍掃描）** |
+| walkaround | hooks | **M1-R** |
 | phaseledger | hooks | M1（未凍結） |
 | trust-meter | MCP | M2 |
 | nullbench | MCP | M2 |
