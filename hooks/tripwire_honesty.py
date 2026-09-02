@@ -9,6 +9,9 @@ an agent `git commit --no-verify` still hits tripwire_pretooluse.py.
 A human at a raw terminal `git commit --no-verify` bypasses git hooks
 and also bypasses tripwire, because tripwire is not a git hook.
 Merge enforcement is a required status check, not a local hook.
+A workflow file is not that check: yaml existing does not mean the
+ruleset is applied. Owner must POST .github/required-ruleset.json.
+M4 does not fix local --no-verify.
 """
 
 

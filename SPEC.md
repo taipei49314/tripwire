@@ -335,7 +335,7 @@ Claude PreToolUse **仍會**攔 `git commit --no-verify`（那是 harness，不�
 
 **預註冊：** 本表隨本輪 commit 凍結。
 
-### M4 — required status check（本輪凍結判準，尚未實作）
+### M4 — required status check（本輪落地）
 
 H1 指出洞，不裝成已解。本表是那個洞的 merge 側切片。M0–M3 與 leftover **不得弱化**。H1 仍成立：人類終端 `--no-verify` 仍繞過本地 hook；M4 **不是** git hook，不准改 hooks 去「補」`--no-verify`。
 
