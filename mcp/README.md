@@ -15,5 +15,6 @@ stdio JSON-RPC 2.0, Content-Length framing. Frozen tools (SPEC §3 M2):
 | `ledger.score` | nullbench @ v0.8.2 |
 | `receipt.verify` | walkaround @ v0.4.1 |
 | `repo.investigate` | unasked @ v0.4.0 (`doctor`) |
+| `repo.passport` | RepoPassport @ v0.1.0-alpha.33 |
 
-Missing vendor → `isError` fail-closed. RepoPassport is not invoked this slice.
+Missing vendor → `isError` fail-closed. Query plane only; not a Stop/CI gate.

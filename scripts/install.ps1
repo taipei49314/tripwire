@@ -3,6 +3,9 @@
 
 $ErrorActionPreference = "Stop"
 
+# GitHub renamed greenwash -> checkwash. The v0.1.47 tag still peels on that
+# history and is the frozen M0/M4 judge. Do not retarget this pin to current
+# checkwash (different engine; checkwash release is frozen).
 $GreenwashRepo = "https://github.com/taipei49314/greenwash.git"
 $GreenwashTag = "v0.1.47"
 $WalkaroundRepo = "taipei49314/walkaround"
@@ -18,6 +21,7 @@ $NullbenchTag = "v0.8.2"
 $CharterlockRepo = "https://github.com/taipei49314/charterlock.git"
 $CharterlockTag = "v0.1.0"
 $RepoPassRepo = "https://github.com/taipei49314/RepoPassport.git"
+$RepoPassTag = "v0.1.0-alpha.33"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $Vendor = Join-Path $Root "vendor"
@@ -122,9 +126,9 @@ if (Test-Path $RepoPassTarget) {
     Write-Host "vendor/RepoPassport already present - removing for a clean pin."
     Remove-Item -Recurse -Force $RepoPassTarget
 }
-cmd /c "git clone --quiet --depth 1 `"$RepoPassRepo`" `"$RepoPassTarget`""
-if ($LASTEXITCODE -ne 0) { throw "clone of RepoPassport failed" }
-Write-Host "vendored judge: RepoPassport source (go run ./cmd/repopass)"
+cmd /c "git clone --quiet --depth 1 --branch $RepoPassTag `"$RepoPassRepo`" `"$RepoPassTarget`""
+if ($LASTEXITCODE -ne 0) { throw "clone of RepoPassport@$RepoPassTag failed" }
+Write-Host "vendored judge: RepoPassport source pin $RepoPassTag (go run ./cmd/repopass)"
 
 $stopHook = Join-Path $Root "hooks\tripwire_stop.py"
 $preHook = Join-Path $Root "hooks\tripwire_pretooluse.py"
