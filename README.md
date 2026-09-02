@@ -24,7 +24,10 @@ the vendored [greenwash](https://github.com/taipei49314/greenwash) (pinned
 `v0.1.47`) checks HEAD..worktree for verification-layer tampering — weakened
 assertions, new skips, rewritten goldens, relaxed CI — and blocks the stop
 with the finding fed back to the agent. Fail-closed: a missing, crashed, or
-hung judge blocks too.
+hung judge blocks too. GitHub renamed that repo to
+[checkwash](https://github.com/taipei49314/checkwash); the old clone URL still
+resolves. **This pin is the historical judge at `v0.1.47`, not the current
+checkwash engine.** Do not retarget M0/M4 to checkwash HEAD.
 
 **M1-R — walkaround receipt gate (landed).** The same Stop is a
 done-claim. After greenwash allows, tripwire requires a walkaround
@@ -78,8 +81,8 @@ gh api repos/OWNER/REPO/rulesets --method POST --input .github/required-ruleset.
 ```
 
 **smallestlie — evaluated, not connected.** Adversarial probe, MCP-shaped
-later. No git tag; repo is private while tripwire is public. SPEC §2
-forbids a floating HEAD pin. Not a Stop/CI gate.
+later. Annotated tag `v0.7.1` exists and the repo is public, so SPEC §2
+would allow a pin. Still not a Stop/CI gate; connecting it is a later slice.
 
 **Dogfood.** This tree carries `.walkaround/`, `.phaseledger/` (plan
 ADVANCED only), and `.charterlock/` (vendored CHARTER_SPLIT fixture, not
