@@ -1,0 +1,26 @@
+{
+  "observations": {
+    "artifact_present": true,
+    "artifact_sha256": "65d27015f45f1a13b311687d13661fff5cd8f223237add3b7d8a38d8ae2bba64",
+    "checks": [
+      {
+        "name": "spec-present",
+        "passed": true
+      }
+    ],
+    "claim": "plan: M0-M4 hooks+MCP+skills+leftover+required greenwash check",
+    "phase": "plan"
+  },
+  "phase": "plan",
+  "recorded_at": "2026-09-02T06:16:28+00:00",
+  "result": {
+    "claim": "plan: M0-M4 hooks+MCP+skills+leftover+required greenwash check",
+    "missing_keys": [],
+    "observation_digest": "d411f7083fc5d49e39f1562aed899fb77ba39067a63f7928f462e02e268f82fa",
+    "phase": "plan",
+    "reason": "all required observations present; all checks passed",
+    "schema_version": "1",
+    "verdict": "PASS"
+  },
+  "strict": false
+}

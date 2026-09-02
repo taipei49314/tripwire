@@ -1,0 +1,12 @@
+{
+  "must": [
+    {
+      "id": "invoice-total-exact",
+      "type": "assertion"
+    },
+    {
+      "id": "invoice-currency-twd",
+      "type": "assertion"
+    }
+  ]
+}

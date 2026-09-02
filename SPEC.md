@@ -419,6 +419,32 @@ Range（workflow 算，腳本不猜）：
 
 **預註冊：** 本表隨本 commit 凍結。
 
+### Dogfood 種場與 CODEOWNERS（本輪）
+
+不弱化 M0–M4 / leftover / smallestlie 評估。不把 session 閘搬進 CI（M4 CI6 仍成立）。
+
+Stop 四閘要在 tripwire 自己的樹上有場，否則 Claude 開這個 repo 每次 done-claim 都 `NO_LEDGER` / `NO_CHARTER` / 沒收據。
+
+| 場 | 內容 |
+| --- | --- |
+| `.phaseledger/` | 只 advance `plan`。implement / test 未 ADVANCED（誠實：計畫已過，實作帳本另計） |
+| `.charterlock/` | vendored charterlock `key_split_frozen` CHARTER_SPLIT fixture。這是**閘的狗糧**，不宣稱兩個人寫了章程（charterlock 自己說 `independence_claim` 是 `not_claimed`） |
+| `.walkaround/receipt.json` | `ADMITTED` 狗糧收據。walkaround 不宣稱 freshness |
+
+CODEOWNERS：`.github/` 歸 `@taipei49314`。**單人倉庫不開** ruleset `require_code_owner_review`——owner 不能給自己的 PR 過 review，會卡死合入。檔案存在 ≠ review 已強制（與 CI11 同形）。
+
+| # | 判準 |
+| --- | --- |
+| D1 | `.phaseledger/ledger.json` 存在，`phaseledger status` 含 `- plan: ADVANCED \|` |
+| D2 | `.charterlock/charter.json` 存在 |
+| D3 | `.walkaround/receipt.json` 存在，`walkaround verify` 原文含 `ADMITTED` |
+| CO1 | `.github/CODEOWNERS` 含 `.github/` 與 `@taipei49314` |
+| CO2 | honesty 或 README 載明 CODEOWNERS 不是 required review |
+| D4 | `python -m unittest` 鎖 D1–D3 / CO1–CO2，測試不碰網路 |
+| D5 | `scripts/ci_greenwash.py` 與 workflow 仍不含 `walkaround` / `phaseledger` / `charterlock` |
+
+**預註冊：** 本表隨本 commit 凍結。
+
 ## 4. 明確不做
 
 - 不修改、不 fork、不 patch 任何裁判 repo 的偵測邏輯
@@ -429,6 +455,7 @@ Range（workflow 算，腳本不猜）：
 - 不宣稱 `.github/workflows` 檔等於 required check
 - 不用 greenwash GitHub Action 當 tripwire 的裁判 pin
 - 不以浮動 HEAD pin smallestlie；沒有 git tag 就不 vendor
+- 不在單人倉庫開啟 required code-owner review（會卡死 owner PR）
 
 ## 5. 家族地圖（資產 → 層）
 

@@ -1,0 +1,7 @@
+{
+  "keys": {
+    "hmac-sha256:4ca14526b2751b640d549ce7caf8ac39438592211a0ec370064d57666a682ad6": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "hmac-sha256:c2f480d4dda9f4522b9f6d590011636d904accfe59f12f9d66a0221c2558e3a2": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "hmac-sha256:e0e77a507412b120f6ede61f62295b1a7b2ff19d3dcc8f7253e51663470c888e": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

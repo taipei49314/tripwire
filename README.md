@@ -81,6 +81,14 @@ gh api repos/OWNER/REPO/rulesets --method POST --input .github/required-ruleset.
 later. No git tag; repo is private while tripwire is public. SPEC §2
 forbids a floating HEAD pin. Not a Stop/CI gate.
 
+**Dogfood.** This tree carries `.walkaround/`, `.phaseledger/` (plan
+ADVANCED only), and `.charterlock/` (vendored CHARTER_SPLIT fixture, not
+a two-person claim) so Stop can run here. Session gates stay off CI.
+
+**CODEOWNERS.** `.github/` is listed for `@taipei49314`. That file is
+not a required review; enabling `require_code_owner_review` on a
+single-owner repo would deadlock PRs.
+
 Honest scope note (greenwash's own warning): a local hook is an author-side
 convenience. Merge-level enforcement is a **required status check**; tripwire
 does not pretend otherwise.

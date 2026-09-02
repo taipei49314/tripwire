@@ -1,0 +1,5 @@
+# Ownership of the merge-enforcement surface.
+# This file is not a merge gate unless a ruleset requires code-owner review.
+# This repo is single-owner: do not enable require_code_owner_review
+# (the owner cannot approve their own PR).
+.github/ @taipei49314

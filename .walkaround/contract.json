@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "goal": "tripwire dogfood: Stop four-gate field on this repo",
+  "allowed_paths": [],
+  "forbidden_paths": [
+    ".walkaround/**"
+  ],
+  "required_organs": [
+    "o"
+  ],
+  "done_predicates": [
+    "done",
+    "做完",
+    "finished"
+  ],
+  "require_observe": true,
+  "require_work": true
+}

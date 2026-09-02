@@ -1,0 +1,36 @@
+{
+  "phases": [
+    "plan",
+    "implement",
+    "test"
+  ],
+  "states": {
+    "implement": {
+      "advanced": false,
+      "advanced_at": null,
+      "claim": null,
+      "measure_digest": null,
+      "measure_path": null,
+      "measure_verdict": null,
+      "name": "implement"
+    },
+    "plan": {
+      "advanced": true,
+      "advanced_at": "2026-09-02T06:16:28+00:00",
+      "claim": "plan: M0-M4 hooks+MCP+skills+leftover+required greenwash check",
+      "measure_digest": "d411f7083fc5d49e39f1562aed899fb77ba39067a63f7928f462e02e268f82fa",
+      "measure_path": "measures/plan-2026-09-02T061628+0000-PASS.json",
+      "measure_verdict": "PASS",
+      "name": "plan"
+    },
+    "test": {
+      "advanced": false,
+      "advanced_at": null,
+      "claim": null,
+      "measure_digest": null,
+      "measure_path": null,
+      "measure_verdict": null,
+      "name": "test"
+    }
+  }
+}
