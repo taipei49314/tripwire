@@ -77,6 +77,10 @@ Session gates stay off CI. A workflow file is not enforcement; apply
 gh api repos/OWNER/REPO/rulesets --method POST --input .github/required-ruleset.json
 ```
 
+**smallestlie — evaluated, not connected.** Adversarial probe, MCP-shaped
+later. No git tag; repo is private while tripwire is public. SPEC §2
+forbids a floating HEAD pin. Not a Stop/CI gate.
+
 Honest scope note (greenwash's own warning): a local hook is an author-side
 convenience. Merge-level enforcement is a **required status check**; tripwire
 does not pretend otherwise.
@@ -104,6 +108,7 @@ and prints the Stop-hook snippet to paste into a target repo's
 | RepoPassport | MCP | **M2.1** |
 | charterlock | hooks | **M1-K** |
 | T-series pre-registration | skills | **M3** |
+| smallestlie | MCP (evaluated) | **not connected** |
 
 Roadmap and frozen acceptance criteria: [SPEC.md](SPEC.md).
 
