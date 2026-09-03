@@ -19,6 +19,10 @@ judges by git tag and never edits their logic ([SPEC.md](SPEC.md) §2).
 
 ## Status
 
+**Frozen (2026-09-03).** tripwire is the integration layer. Its judge pins do
+not follow checkwash release slots or any judge's own releases; a pin moves
+only on a human decision recorded in the estate ledger (T-57 D-5).
+
 **M0 — greenwash stop gate (landed).** When the agent tries to finish a turn,
 the vendored [greenwash](https://github.com/taipei49314/greenwash) (pinned
 `v0.1.47`) checks HEAD..worktree for verification-layer tampering — weakened
